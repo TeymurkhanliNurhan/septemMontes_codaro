@@ -14,6 +14,9 @@
 # JetBrains IDE
 .idea/
 
+# NestJS build output
+dist/
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
