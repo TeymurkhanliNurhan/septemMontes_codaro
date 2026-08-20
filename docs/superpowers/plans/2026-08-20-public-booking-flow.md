@@ -1506,7 +1506,16 @@ The resources route returns `404` unless the service is `CUSTOMER_CHOICE`, so an
 
 - [ ] **Step 2: Write the module**
 
-Follow `src/service/service.module.ts`. `TypeOrmModule.forFeature` needs: `Organization`, `Service`, `Resource`, `ServiceResource`, `AvailabilityRule`, `AvailabilityException`, `Booking`, `BookingResource`, `BookingEvent`, `Customer`.
+Follow `src/service/service.module.ts`. `TypeOrmModule.forFeature` needs only the
+entities actually reached through `@InjectRepository`: `Organization` and `Service`
+(controller), plus `Resource`, `ServiceResource`, `AvailabilityRule`,
+`AvailabilityException` and `BookingResource` (`AvailabilityService`).
+
+Do **not** register `Booking`, `BookingEvent` or `Customer`. `PublicBookingService`
+injects nothing but `AvailabilityService` and `DataSource`, reaching every entity
+through the transaction's `EntityManager` — which resolves against the app-wide
+`forRootAsync` entity list and needs no `forFeature` entry. Registering them implies
+an injectable repository that does not exist.
 
 - [ ] **Step 3: Register the module and the throttler**
 
