@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { TRADITIONS, traditionById, type DispositionKind } from '$lib/funeral/constraints';
+	import Testimonials from '$lib/components/funeral/Testimonials.svelte';
 	import { loadCase, saveCase, type ArrangementCase } from '$lib/funeral/case-store';
 	import type { PageData } from './$types';
 
@@ -131,27 +132,9 @@
 	}
 </script>
 
-<!--
-	The masthead. It is a still, misty figure waiting somewhere pale, and it is
-	played entirely straight — no caption naming it, no wink. A reader who
-	recognises the platform gets the joke; a reader who has just lost their
-	mother sees a quiet illustration and nothing is asked of them.
-
-	The film's green cast fights warm paper, so it is pulled towards sepia and
-	multiplied into the page: the treatment of a plate printed in the same ink
-	as the rest of the document rather than a photograph dropped on top of it.
--->
-<figure class="settle mb-10 max-w-2xl">
-	<img
-		src="/afterlife.webp"
-		alt="A robed figure standing alone in a pale, misty hall."
-		class="h-auto w-full opacity-95 mix-blend-multiply"
-		style="filter: sepia(52%) saturate(70%) contrast(114%);"
-	/>
-	<figcaption class="hairline pb-3 text-xs opacity-45">
-		The far end of this booking. We are told the waiting area is pleasant.
-	</figcaption>
-</figure>
+<div class="mb-12">
+	<Testimonials />
+</div>
 
 <div class="max-w-2xl">
 	<p class="eyebrow settle">Beginning an arrangement</p>
@@ -407,6 +390,18 @@
 				<span>{formError}</span>
 			</div>
 		{/if}
+
+		<figure class="settle">
+			<img
+				src="/afterlife.webp"
+				alt="A robed figure standing alone in a pale, misty hall."
+				class="h-auto w-full opacity-95 mix-blend-multiply"
+				style="filter: sepia(52%) saturate(70%) contrast(114%);"
+			/>
+			<figcaption class="hairline pb-3 text-xs opacity-45">
+				The far end of this booking. We are told the waiting area is pleasant.
+			</figcaption>
+		</figure>
 
 		<div class="flex items-center gap-4 pb-4">
 			<button type="submit" class="btn btn-primary">See what is possible</button>

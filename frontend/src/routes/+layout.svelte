@@ -15,7 +15,7 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<div class="flex min-h-screen flex-col bg-base-100">
+<div class="flex min-h-screen flex-col overflow-x-clip bg-base-100">
 	<header class="hairline">
 		<div class="mx-auto flex w-full max-w-5xl items-baseline justify-between gap-4 px-5 py-5">
 			<a href={resolve('/')} class="display text-xl tracking-tight">
