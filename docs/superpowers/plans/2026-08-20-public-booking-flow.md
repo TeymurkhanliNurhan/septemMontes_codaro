@@ -1522,11 +1522,18 @@ an injectable repository that does not exist.
 In `app.module.ts`, add `PublicBookingModule` to `imports`, and a third throttler alongside the existing two:
 
 ```ts
+    // Every named throttler applies to EVERY route; @Throttle only overrides
+    // that throttler's limit where it appears, it does not scope which
+    // throttlers run. A low module default therefore caps the whole API --
+    // the pre-existing `login: 10` was silently limiting /health to 10/min.
+    // Opt-in buckets must be effectively unlimited here; the decorators on
+    // auth.controller.ts and public-booking.controller.ts supply the real
+    // limits.
     ThrottlerModule.forRoot({
       throttlers: [
         { name: 'default', ttl: 60_000, limit: 300 },
-        { name: 'login', ttl: 60_000, limit: 10 },
-        { name: 'publicWrite', ttl: 60_000, limit: 10 },
+        optInThrottler('login'),
+        optInThrottler('publicWrite'),
       ],
     }),
 ```
@@ -2234,6 +2241,27 @@ public flow makes this worse, and it is out of scope here — but "the booking p
 is safe under concurrency" is easy to over-read, and it is only true of the guest
 path. Closing it means routing staff writes through the same lock-then-re-check
 sequence, which is admin-panel work.
+
+## Staff-side gaps this plan does not close
+
+Found while reviewing the public flow; all three are staff-side and out of scope
+here, but each undermines a guarantee the public flow tries to make.
+
+**`service_resources` has no cross-org constraint.** Only two foreign keys; nothing
+ties a service's organization to its resource's. `ServiceResourceService.create` is
+`repo.create(dto); repo.save(entity)` with **zero** org validation, so any staff
+user in org A can link their service to org B's resource. That is the precondition
+for the `capableResources` scoping leak. The real cure is validating the org on
+create, with a DB CHECK or composite FK as the belt.
+
+**`ParseUUIDPipe` is used nowhere in the repo.** Any `@Param` holding a uuid that
+reaches a `where` clause turns a malformed value into a Postgres `22P02`, which
+`AllExceptionsFilter` maps to a 500 with a logged stack. Behind `SessionAuthGuard`
+that is a nuisance; the public routes fix it locally, but the staff controllers
+still carry it.
+
+**Staff bookings bypass every concurrency guarantee** -- see the guest-vs-guest
+section above.
 
 ## Deliberately not built
 
