@@ -79,6 +79,8 @@ export function eachLocalDate(from: string, to: string): string[] {
  * and `'system'` pseudo-zones are rejected explicitly: they silently resolve
  * to whatever timezone the API server happens to be running in, which would
  * produce plausible-but-wrong availability with no error anywhere.
+ *
+ * `time` may be `HH:mm` or `HH:mm:ss` — luxon's ISO parser accepts both.
  */
 export function resolveLocal(
   date: string,
@@ -88,7 +90,7 @@ export function resolveLocal(
 ): number {
   assertZone(zone);
 
-  const local = `${date}T${normalizeTime(time)}`;
+  const local = `${date}T${time}`;
   const parsed = DateTime.fromISO(local, { zone });
 
   if (!parsed.isValid) {
@@ -126,11 +128,4 @@ export function localDayBounds(
     .plus({ days: 1 })
     .toFormat('yyyy-MM-dd');
   return { start, end: resolveLocal(next, '00:00:00', zone, 'earliest') };
-}
-
-/** Tolerates an `HH:mm` time by appending seconds; passes other input through. */
-function normalizeTime(time: string): string {
-  const parts = time.split(':');
-  if (parts.length === 2) return `${time}:00`;
-  return time;
 }
