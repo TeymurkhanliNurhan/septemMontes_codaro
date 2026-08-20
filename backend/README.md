@@ -18,6 +18,7 @@ npm run start:dev
 - API: `http://localhost:3005`
 - Swagger: `http://localhost:3005/api` (development only; disabled when `NODE_ENV=production`)
 - Sign-in: `http://localhost:3005/signin.html`
+- Sign-up (workers): `http://localhost:3005/signup.html`
 - Resources admin: `http://localhost:3005/resources.html`
 - Health: `GET /health` (public)
 

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sign in · Septem Montes</title>
+    <title>Sign up · Septem Montes</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -168,10 +168,23 @@
     <main class="shell">
       <header class="brand">
         <h1>Septem Montes</h1>
-        <p>Sign in with your email and password</p>
+        <p>Create a worker account (staff / admin / owner)</p>
       </header>
 
-      <form id="signin-form" novalidate>
+      <form id="signup-form" novalidate>
+        <label>
+          Full name
+          <input
+            id="name"
+            name="name"
+            type="text"
+            autocomplete="name"
+            required
+            maxlength="255"
+            placeholder="Jane Doe"
+          />
+        </label>
+
         <label>
           Email
           <input
@@ -190,29 +203,45 @@
             id="password"
             name="password"
             type="password"
-            autocomplete="current-password"
+            autocomplete="new-password"
             required
             minlength="8"
             placeholder="At least 8 characters"
           />
         </label>
 
-        <button type="submit" id="submit-btn">Sign in</button>
+        <label>
+          Role
+          <select id="role" name="role" required>
+            <option value="STAFF" selected>STAFF</option>
+            <option value="ADMIN">ADMIN</option>
+            <option value="OWNER">OWNER</option>
+          </select>
+        </label>
+
+        <button type="submit" id="submit-btn">Create account</button>
         <div class="message" id="message" aria-live="polite"></div>
       </form>
 
       <p class="hint">
-        No account yet?
-        <a href="/signup.html">Sign up as a worker</a>
+        Already have an account?
+        <a href="/signin.html">Sign in</a>
         ·
         <a href="/api" target="_blank" rel="noopener">Swagger</a>
       </p>
     </main>
 
     <script>
-      const form = document.getElementById('signin-form');
+      const form = document.getElementById('signup-form');
       const message = document.getElementById('message');
       const submitBtn = document.getElementById('submit-btn');
+
+      function errorText(data, fallback) {
+        if (!data) return fallback;
+        if (Array.isArray(data.message)) return data.message.join(', ');
+        if (data.message) return String(data.message);
+        return fallback;
+      }
 
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -221,36 +250,49 @@
         submitBtn.disabled = true;
 
         const payload = {
+          name: document.getElementById('name').value.trim(),
           email: document.getElementById('email').value.trim(),
           password: document.getElementById('password').value,
+          role: document.getElementById('role').value,
         };
 
         try {
-          const response = await fetch('/auth/login', {
+          const registerResponse = await fetch('/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify(payload),
           });
-
-          const data = await response.json().catch(() => ({}));
-
-          if (!response.ok) {
-            const detail =
-              data.message?.toString?.() ||
-              (Array.isArray(data.message) ? data.message.join(', ') : null) ||
-              'Sign in failed';
-            throw new Error(detail);
+          const registerData = await registerResponse.json().catch(() => ({}));
+          if (!registerResponse.ok) {
+            throw new Error(errorText(registerData, 'Sign up failed'));
           }
 
-          localStorage.setItem('user', JSON.stringify(data));
+          const loginResponse = await fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              email: payload.email,
+              password: payload.password,
+            }),
+          });
+          const loginData = await loginResponse.json().catch(() => ({}));
+          if (!loginResponse.ok) {
+            message.className = 'message success';
+            message.textContent =
+              'Account created. Sign in to continue…';
+            window.location.href = '/signin.html';
+            return;
+          }
 
+          localStorage.setItem('user', JSON.stringify(loginData));
           message.className = 'message success';
-          message.textContent = `Welcome, ${data.name}. Redirecting…`;
+          message.textContent = `Welcome, ${loginData.name}. Redirecting…`;
           window.location.href = '/resources.html';
         } catch (error) {
           message.className = 'message error';
-          message.textContent = error.message || 'Sign in failed';
+          message.textContent = error.message || 'Sign up failed';
         } finally {
           submitBtn.disabled = false;
         }
