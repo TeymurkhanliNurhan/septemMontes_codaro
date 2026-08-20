@@ -2125,6 +2125,41 @@ asymmetric buffer cases: the original buffer test used equal before/after
 values, so transposing the two arguments of `expandInterval` was invisible to
 the entire suite.
 
+## Requirements consciously dropped
+
+**Grid alignment of `startsAt`.** The spec and Task 7's brief both required that
+`startsAt` match a slot start exactly rather than merely fall inside a free
+window, so a hand-crafted request could not wedge the schedule at an arbitrary
+offset. **Nothing enforces that any more**, and the decision was deliberate.
+
+Enforcement was an accident of implementation: `isSlotFree` regenerated the slot
+grid and looked the instant up in it. That grid is phased from each merged free
+window's start, so narrowing the search range re-phased it — and a reviewer
+measured the result on a 24/7 resource:
+
+```
+duration= 50m | offered=28  rejected=28    <-- every slot findSlots advertised
+duration= 25m | offered=57  rejected=57
+duration= 60m | offered=24  rejected=0     (durations dividing 1440 are unaffected)
+```
+
+Every booking returned "That time was just taken" for a time the API had just
+offered. `isSlotFree` now answers containment directly, which is phase-independent
+and also fixes a pre-existing bug where an unrelated 09:15 booking made a still-free
+10:00 unbookable.
+
+Both stable anchors for re-adding alignment fail: anchoring on the containing
+interval's start reintroduces the re-phasing, and anchoring on local midnight makes
+`findSlots` and `isSlotFree` disagree in the opposite direction, so the API would
+again reject its own advertised slots.
+
+What remains true: buffers are still applied, so an off-grid start cannot land
+inside an existing booking's padding; nothing double-books; no tenant boundary is
+crossed. An off-grid booking fragments a schedule, and requires a hand-crafted
+request — the UI only ever offers grid slots. Re-adding alignment means giving
+`computeSlots` a stable anchor, which is a change to the slot engine, not a check
+bolted onto its caller.
+
 ## Deliberately not built
 
 Carried over from the spec, and out of scope here:
