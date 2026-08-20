@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resources · Septem Montes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #14231c;
+        --moss: #1f4d3a;
+        --leaf: #2f6b4f;
+        --mist: #e8efe9;
+        --sand: #d4c4a8;
+        --paper: #f7f5f0;
+        --danger: #9b2c2c;
+        --warn: #8a5a12;
+        --radius: 10px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Source Sans 3', sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(1200px 600px at 10% -10%, #c5d9ce 0%, transparent 55%),
+          radial-gradient(900px 500px at 100% 0%, #e2d6c2 0%, transparent 50%),
+          linear-gradient(160deg, #f3efe6 0%, #e7eee9 45%, #dfe8e2 100%);
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid color-mix(in srgb, var(--moss) 12%, transparent);
+        background: color-mix(in srgb, var(--paper) 70%, white);
+        animation: rise 0.45s ease-out both;
+      }
+
+      header h1 {
+        margin: 0;
+        font-family: Fraunces, Georgia, serif;
+        font-size: clamp(1.6rem, 3vw, 2rem);
+        color: var(--moss);
+      }
+
+      header .meta {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: #4a5c52;
+        font-size: 0.95rem;
+      }
+
+      main {
+        width: min(1100px, 100%);
+        margin: 0 auto;
+        padding: 1.5rem;
+        animation: rise 0.55s ease-out both;
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr auto;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+
+      @media (max-width: 800px) {
+        .toolbar {
+          grid-template-columns: 1fr;
+        }
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+
+      input,
+      select,
+      textarea,
+      button {
+        font: inherit;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid color-mix(in srgb, var(--moss) 20%, #ccd8d1);
+        background: #fff;
+        border-radius: var(--radius);
+        padding: 0.7rem 0.85rem;
+        color: var(--ink);
+      }
+
+      button {
+        border: 0;
+        border-radius: var(--radius);
+        padding: 0.7rem 1rem;
+        background: var(--moss);
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      button.secondary {
+        background: transparent;
+        color: var(--moss);
+        border: 1px solid color-mix(in srgb, var(--moss) 35%, transparent);
+      }
+
+      button.danger {
+        background: var(--danger);
+      }
+
+      .panel {
+        background: color-mix(in srgb, var(--paper) 88%, white);
+        border: 1px solid color-mix(in srgb, var(--moss) 10%, transparent);
+        border-radius: 14px;
+        padding: 1rem;
+        box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 6%, transparent);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 0.85rem 0.6rem;
+        border-bottom: 1px solid var(--mist);
+        vertical-align: middle;
+      }
+
+      th {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #4a5c52;
+      }
+
+      .status {
+        display: inline-block;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
+      .status.active {
+        background: color-mix(in srgb, var(--leaf) 18%, white);
+        color: var(--moss);
+      }
+
+      .status.inactive {
+        background: color-mix(in srgb, var(--sand) 55%, white);
+        color: var(--warn);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+
+      .actions button {
+        padding: 0.4rem 0.65rem;
+        font-size: 0.85rem;
+      }
+
+      .message {
+        margin: 0.75rem 0 1rem;
+        min-height: 1.25rem;
+        font-size: 0.95rem;
+      }
+
+      .message.error {
+        color: var(--danger);
+      }
+
+      .message.success {
+        color: var(--leaf);
+      }
+
+      .empty,
+      .loading,
+      .error-state {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: #4a5c52;
+      }
+
+      .pager {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 1rem;
+        color: #4a5c52;
+      }
+
+      dialog {
+        border: 0;
+        border-radius: 14px;
+        padding: 0;
+        width: min(520px, calc(100vw - 2rem));
+        background: color-mix(in srgb, var(--paper) 92%, white);
+        box-shadow: 0 20px 50px color-mix(in srgb, var(--ink) 18%, transparent);
+      }
+
+      dialog::backdrop {
+        background: color-mix(in srgb, var(--ink) 45%, transparent);
+      }
+
+      .dialog-body {
+        padding: 1.25rem;
+      }
+
+      .dialog-body h2 {
+        margin: 0 0 1rem;
+        font-family: Fraunces, Georgia, serif;
+        color: var(--moss);
+      }
+
+      label {
+        display: grid;
+        gap: 0.35rem;
+        margin-bottom: 0.85rem;
+        font-weight: 500;
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.6rem;
+        margin-top: 0.5rem;
+      }
+
+      .detail-grid {
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .detail-grid dt {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #4a5c52;
+      }
+
+      .detail-grid dd {
+        margin: 0.15rem 0 0;
+      }
+
+      .placeholder {
+        margin-top: 1rem;
+        padding: 0.85rem;
+        border: 1px dashed color-mix(in srgb, var(--moss) 25%, transparent);
+        border-radius: var(--radius);
+        color: #4a5c52;
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Resources</h1>
+        <div class="meta" id="user-meta">Loading…</div>
+      </div>
+      <div class="meta">
+        <a href="/signin.html">Sign in</a>
+        <button type="button" class="secondary" id="logout-btn">Log out</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search by name" />
+        <select id="status-filter">
+          <option value="">All statuses</option>
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
+        </select>
+        <input id="type-filter" type="text" placeholder="Resource type" />
+        <button type="button" id="create-btn">Create resource</button>
+      </div>
+
+      <div class="message" id="toast" aria-live="polite"></div>
+
+      <section class="panel">
+        <div id="list-state" class="loading">Loading resources…</div>
+        <div id="table-wrap" hidden>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Created At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <div class="pager">
+            <span id="page-meta"></span>
+            <div class="actions">
+              <button type="button" class="secondary" id="prev-page">Previous</button>
+              <button type="button" class="secondary" id="next-page">Next</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="form-dialog">
+      <form class="dialog-body" id="resource-form">
+        <h2 id="form-title">Create resource</h2>
+        <input type="hidden" id="edit-id" />
+        <label>
+          Name
+          <input id="name" required maxlength="255" />
+        </label>
+        <label>
+          Resource Type
+          <input id="resourceType" maxlength="100" placeholder="optional" />
+        </label>
+        <label id="status-field" hidden>
+          Status
+          <select id="status">
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="INACTIVE">INACTIVE</option>
+          </select>
+        </label>
+        <label>
+          Metadata (JSON object)
+          <textarea id="metadata" rows="6" placeholder='{"capacity": 8}'></textarea>
+        </label>
+        <div class="message" id="form-message"></div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" id="cancel-form">Cancel</button>
+          <button type="submit" id="save-btn">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="detail-dialog">
+      <div class="dialog-body">
+        <h2>Resource detail</h2>
+        <dl class="detail-grid" id="detail-content"></dl>
+        <div class="placeholder">Services — coming soon</div>
+        <div class="placeholder">Availability — coming soon</div>
+        <div class="placeholder">Upcoming bookings — coming soon</div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" id="close-detail">Close</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script>
+      const MUTATE_ROLES = new Set(['OWNER', 'ADMIN']);
+      const READ_ROLES = new Set(['OWNER', 'ADMIN', 'STAFF']);
+
+      const state = {
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        loading: false,
+        user: null,
+        canMutate: false,
+      };
+
+      const els = {
+        toast: document.getElementById('toast'),
+        userMeta: document.getElementById('user-meta'),
+        listState: document.getElementById('list-state'),
+        tableWrap: document.getElementById('table-wrap'),
+        rows: document.getElementById('rows'),
+        pageMeta: document.getElementById('page-meta'),
+        search: document.getElementById('search'),
+        statusFilter: document.getElementById('status-filter'),
+        typeFilter: document.getElementById('type-filter'),
+        createBtn: document.getElementById('create-btn'),
+        prevPage: document.getElementById('prev-page'),
+        nextPage: document.getElementById('next-page'),
+        formDialog: document.getElementById('form-dialog'),
+        detailDialog: document.getElementById('detail-dialog'),
+        form: document.getElementById('resource-form'),
+        formTitle: document.getElementById('form-title'),
+        formMessage: document.getElementById('form-message'),
+        editId: document.getElementById('edit-id'),
+        name: document.getElementById('name'),
+        resourceType: document.getElementById('resourceType'),
+        status: document.getElementById('status'),
+        statusField: document.getElementById('status-field'),
+        metadata: document.getElementById('metadata'),
+        saveBtn: document.getElementById('save-btn'),
+        detailContent: document.getElementById('detail-content'),
+      };
+
+      function requireAuth() {
+        const rawUser = localStorage.getItem('user');
+        if (!rawUser) {
+          window.location.href = '/signin.html';
+          return null;
+        }
+        try {
+          const user = JSON.parse(rawUser);
+          if (!READ_ROLES.has(user.role)) {
+            showToast('Your role cannot access resources.', 'error');
+            return null;
+          }
+          state.user = user;
+          state.canMutate = MUTATE_ROLES.has(user.role);
+          els.userMeta.textContent = `${user.name} · ${user.role}`;
+          els.createBtn.hidden = !state.canMutate;
+          return user;
+        } catch {
+          window.location.href = '/signin.html';
+          return null;
+        }
+      }
+
+      function showToast(text, kind) {
+        els.toast.className = `message ${kind || ''}`;
+        els.toast.textContent = text || '';
+      }
+
+      function formatError(data, fallback) {
+        if (!data) return fallback;
+        if (Array.isArray(data.message)) return data.message.join(', ');
+        if (data.message) return String(data.message);
+        return fallback;
+      }
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, {
+          ...options,
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(options.headers || {}),
+          },
+        });
+
+        if (response.status === 401) {
+          localStorage.removeItem('user');
+          window.location.href = '/signin.html';
+          throw new Error('Session expired');
+        }
+
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : null;
+
+        if (!response.ok) {
+          const error = new Error(formatError(data, 'Request failed'));
+          error.status = response.status;
+          error.data = data;
+          throw error;
+        }
+        return data;
+      }
+
+      function buildQuery() {
+        const params = new URLSearchParams();
+        params.set('page', String(state.page));
+        params.set('limit', String(state.limit));
+        params.set('sortBy', 'createdAt');
+        params.set('sortOrder', 'desc');
+        const search = els.search.value.trim();
+        const status = els.statusFilter.value;
+        const resourceType = els.typeFilter.value.trim();
+        if (search) params.set('search', search);
+        if (status) params.set('status', status);
+        if (resourceType) params.set('resourceType', resourceType);
+        return params.toString();
+      }
+
+      async function loadResources() {
+        state.loading = true;
+        els.listState.hidden = false;
+        els.listState.className = 'loading';
+        els.listState.textContent = 'Loading resources…';
+        els.tableWrap.hidden = true;
+
+        try {
+          const result = await api(`/resources?${buildQuery()}`);
+          const rows = result.data || [];
+          state.totalPages = Math.max(result.meta?.totalPages || 0, 1);
+
+          if (!rows.length) {
+            els.listState.className = 'empty';
+            els.listState.textContent = 'No resources found.';
+            return;
+          }
+
+          els.rows.innerHTML = rows
+            .map((item) => {
+              const actions = [
+                `<button type="button" class="secondary" data-action="view" data-id="${item.id}">View</button>`,
+              ];
+              if (state.canMutate) {
+                actions.push(
+                  `<button type="button" class="secondary" data-action="edit" data-id="${item.id}">Edit</button>`,
+                );
+                if (item.status === 'ACTIVE') {
+                  actions.push(
+                    `<button type="button" class="secondary" data-action="deactivate" data-id="${item.id}">Deactivate</button>`,
+                  );
+                } else {
+                  actions.push(
+                    `<button type="button" class="secondary" data-action="activate" data-id="${item.id}">Activate</button>`,
+                  );
+                }
+                actions.push(
+                  `<button type="button" class="danger" data-action="delete" data-id="${item.id}">Delete</button>`,
+                );
+              }
+              return `<tr>
+                <td>${escapeHtml(item.name)}</td>
+                <td>${escapeHtml(item.resourceType || '—')}</td>
+                <td><span class="status ${item.status === 'ACTIVE' ? 'active' : 'inactive'}">${item.status}</span></td>
+                <td>${new Date(item.createdAt).toLocaleString()}</td>
+                <td><div class="actions">${actions.join('')}</div></td>
+              </tr>`;
+            })
+            .join('');
+
+          els.pageMeta.textContent = `Page ${result.meta.page} of ${state.totalPages} · ${result.meta.total} total`;
+          els.prevPage.disabled = state.page <= 1;
+          els.nextPage.disabled = state.page >= state.totalPages;
+          els.listState.hidden = true;
+          els.tableWrap.hidden = false;
+        } catch (error) {
+          if (error.status === 403) {
+            els.listState.className = 'error-state';
+            els.listState.textContent = 'You do not have permission to view resources.';
+            return;
+          }
+          els.listState.className = 'error-state';
+          els.listState.textContent = error.message || 'Failed to load resources.';
+        } finally {
+          state.loading = false;
+        }
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;');
+      }
+
+      function openCreate() {
+        els.formTitle.textContent = 'Create resource';
+        els.editId.value = '';
+        els.name.value = '';
+        els.resourceType.value = '';
+        els.status.value = 'ACTIVE';
+        els.statusField.hidden = true;
+        els.metadata.value = '{\n  \n}';
+        els.formMessage.textContent = '';
+        els.formDialog.showModal();
+      }
+
+      async function openEdit(id) {
+        try {
+          const { data } = await api(`/resources/${id}`);
+          els.formTitle.textContent = 'Edit resource';
+          els.editId.value = data.id;
+          els.name.value = data.name;
+          els.resourceType.value = data.resourceType || '';
+          els.status.value = data.status || 'ACTIVE';
+          els.statusField.hidden = false;
+          els.metadata.value = JSON.stringify(data.metadata || {}, null, 2);
+          els.formMessage.textContent = '';
+          els.formDialog.showModal();
+        } catch (error) {
+          showToast(error.message, 'error');
+        }
+      }
+
+      async function openDetail(id) {
+        try {
+          const { data } = await api(`/resources/${id}`);
+          els.detailContent.innerHTML = `
+            <div><dt>Name</dt><dd>${escapeHtml(data.name)}</dd></div>
+            <div><dt>Type</dt><dd>${escapeHtml(data.resourceType || '—')}</dd></div>
+            <div><dt>Status</dt><dd>${escapeHtml(data.status)}</dd></div>
+            <div><dt>Created</dt><dd>${new Date(data.createdAt).toLocaleString()}</dd></div>
+            <div><dt>Updated</dt><dd>${new Date(data.updatedAt).toLocaleString()}</dd></div>
+            <div><dt>Metadata</dt><dd><pre>${escapeHtml(JSON.stringify(data.metadata || {}, null, 2))}</pre></dd></div>
+          `;
+          els.detailDialog.showModal();
+        } catch (error) {
+          showToast(error.message, 'error');
+        }
+      }
+
+      async function mutate(path, method, body) {
+        try {
+          await api(path, {
+            method,
+            ...(body ? { body: JSON.stringify(body) } : {}),
+          });
+          showToast('Updated successfully.', 'success');
+          await loadResources();
+        } catch (error) {
+          if (error.status === 409) {
+            showToast(error.message, 'error');
+          } else if (error.status === 403) {
+            showToast('Insufficient permissions.', 'error');
+          } else if (error.status === 404) {
+            showToast('Resource not found.', 'error');
+          } else {
+            showToast(error.message, 'error');
+          }
+        }
+      }
+
+      els.rows.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const { action, id } = button.dataset;
+        if (action === 'view') return openDetail(id);
+        if (action === 'edit') return openEdit(id);
+        if (action === 'activate') {
+          return mutate(`/resources/${id}`, 'PATCH', { status: 'ACTIVE' });
+        }
+        if (action === 'deactivate') {
+          return mutate(`/resources/${id}`, 'PATCH', { status: 'INACTIVE' });
+        }
+        if (action === 'delete') {
+          if (!confirm('Delete this resource? Prefer deactivation if it has bookings.')) {
+            return;
+          }
+          return mutate(`/resources/${id}`, 'DELETE');
+        }
+      });
+
+      els.form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        els.formMessage.textContent = '';
+        els.saveBtn.disabled = true;
+
+        let metadata = {};
+        const rawMetadata = els.metadata.value.trim();
+        if (rawMetadata) {
+          try {
+            metadata = JSON.parse(rawMetadata);
+            if (
+              typeof metadata !== 'object' ||
+              metadata === null ||
+              Array.isArray(metadata)
+            ) {
+              throw new Error('Metadata must be a JSON object');
+            }
+          } catch (error) {
+            els.formMessage.className = 'message error';
+            els.formMessage.textContent = error.message || 'Invalid metadata JSON';
+            els.saveBtn.disabled = false;
+            return;
+          }
+        }
+
+        const payload = {
+          name: els.name.value.trim(),
+          resourceType: els.resourceType.value.trim() || null,
+          metadata,
+        };
+
+        try {
+          const id = els.editId.value;
+          if (id) {
+            await api(`/resources/${id}`, {
+              method: 'PATCH',
+              body: JSON.stringify({
+                ...payload,
+                status: els.status.value,
+              }),
+            });
+            showToast('Resource updated.', 'success');
+          } else {
+            await api('/resources', {
+              method: 'POST',
+              body: JSON.stringify(payload),
+            });
+            showToast('Resource created.', 'success');
+          }
+          els.formDialog.close();
+          await loadResources();
+        } catch (error) {
+          els.formMessage.className = 'message error';
+          els.formMessage.textContent = error.message || 'Save failed';
+        } finally {
+          els.saveBtn.disabled = false;
+        }
+      });
+
+      let searchTimer;
+      function scheduleReload() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          state.page = 1;
+          loadResources();
+        }, 250);
+      }
+
+      els.search.addEventListener('input', scheduleReload);
+      els.statusFilter.addEventListener('change', () => {
+        state.page = 1;
+        loadResources();
+      });
+      els.typeFilter.addEventListener('change', () => {
+        state.page = 1;
+        loadResources();
+      });
+      els.typeFilter.addEventListener('input', scheduleReload);
+      els.createBtn.addEventListener('click', openCreate);
+      document.getElementById('cancel-form').addEventListener('click', () => {
+        els.formDialog.close();
+      });
+      document.getElementById('close-detail').addEventListener('click', () => {
+        els.detailDialog.close();
+      });
+      document.getElementById('logout-btn').addEventListener('click', async () => {
+        try {
+          await fetch('/auth/logout', {
+            method: 'POST',
+            credentials: 'include',
+          });
+        } catch {
+          /* ignore network errors on logout */
+        }
+        localStorage.removeItem('user');
+        window.location.href = '/signin.html';
+      });
+      els.prevPage.addEventListener('click', () => {
+        if (state.page > 1) {
+          state.page -= 1;
+          loadResources();
+        }
+      });
+      els.nextPage.addEventListener('click', () => {
+        if (state.page < state.totalPages) {
+          state.page += 1;
+          loadResources();
+        }
+      });
+
+      if (requireAuth()) {
+        loadResources();
+      }
+    </script>
+  </body>
+</html>
