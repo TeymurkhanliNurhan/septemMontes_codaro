@@ -28,6 +28,11 @@ export class OrganizationService {
     return this.toDto(item);
   }
 
+  async findBySlug(slug: string): Promise<OrganizationResponseDto | null> {
+    const item = await this.organizationRepository.findOne({ where: { slug } });
+    return item ? this.toDto(item) : null;
+  }
+
   async create(dto: CreateOrganizationDto): Promise<OrganizationResponseDto> {
     const entity = this.organizationRepository.create({
       name: dto.name,
