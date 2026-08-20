@@ -1,42 +1,63 @@
-# sv
+# Septem Montes booking frontend
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+The consumer-facing booking app: pick an organization, a service, a time, and
+book with a name and an email — no account, no login. SvelteKit 2, Svelte 5
+runes, Tailwind CSS v4, DaisyUI 5.
 
-## Creating a project
+## Prerequisites
 
-If you're seeing this, you've probably already done this step. Congrats!
+- The backend on `http://localhost:3005` (see `backend/README.md`):
+  - migrations run (`npm run migration:run`)
+  - demo data seeded (`npm run seed:demo` — creates the `demo` org with two
+    services and two rooms)
+- Node 20+
 
-```sh
-# create a new project
-npx sv create my-app
-```
+## Running
 
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.17.0 create --template minimal --types ts --add prettier eslint vitest="usages:unit" tailwindcss="plugins:none" --no-download-check --no-install frontend
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+```bash
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+Open `http://localhost:5173`, enter `demo` as the organization, and book away.
+`VITE_API_URL` (see `.env.example`) points at the backend.
 
-To create a production version of your app:
+## Routes
 
-```sh
-npm run build
+| Route | Page |
+|-------|------|
+| `/` | Slug entry |
+| `/{slug}` | Organization shell and service list |
+| `/{slug}/{serviceId}` | Resource picker, week pager, slot grid, confirm form |
+| `/{slug}/booking/{id}` | Confirmation |
+
+The only data the app touches comes from the five unauthenticated routes under
+`/public` — the OpenAPI schema for them is generated into
+`src/lib/api/types.ts`.
+
+## API types
+
+`src/lib/api/types.ts` is **generated** — do not hand-edit it. Regenerate with:
+
+```bash
+npm run gen:api   # needs the backend running on :3005
 ```
 
-You can preview the production build with `npm run preview`.
+Hand-written aliases over the generated schema live in `src/lib/api/schemas.ts`.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## Tests
+
+```bash
+npm test                 # vitest once
+npx vitest               # vitest in watch mode
+npm run check            # svelte-check
+npm run lint             # prettier + eslint
+```
+
+## Later
+
+- **Admin routes must set `ssr = false`.** The staff API is cookie-based, and
+  the admin panel will read its own session state, which does not belong in
+  SSR data.
+- **The API client will need `credentials: 'include'`** for cookie auth. It is
+  deliberately absent today — every route the consumer app calls is public.
