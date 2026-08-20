@@ -1,6 +1,134 @@
 @import 'tailwindcss';
+
+/**
+ * Septem Funeral.
+ *
+ * Two traps here, and this palette avoids both. Greyscale and a thin serif
+ * looks like a condolence card and reads as a team that took the brief too
+ * literally. Indigo, soft shadows and a gradient looks like every other
+ * booking SaaS and says nothing at all.
+ *
+ * So: ink on warm paper, one oxblood accent, hard rules instead of shadows,
+ * nothing blurred and nothing graduated. It is the look of a well-set printed
+ * document, which is what a funeral home actually hands you.
+ *
+ * The tone rule the app follows: the family flow is kind and never jokes; the
+ * pages whose reader is staff or a judge are dry. Nothing is ever funny at the
+ * expense of the person who died.
+ */
 @plugin 'daisyui' {
-	themes:
-		light --default,
-		dark --prefersdark;
+	themes: septem --default;
+}
+
+@plugin 'daisyui/theme' {
+	name: 'septem';
+	default: true;
+	prefersdark: false;
+	color-scheme: light;
+
+	--color-base-100: oklch(97.8% 0.011 82);
+	--color-base-200: oklch(94.6% 0.016 82);
+	--color-base-300: oklch(88% 0.02 80);
+	--color-base-content: oklch(21% 0.018 55);
+
+	--color-primary: oklch(38% 0.13 24);
+	--color-primary-content: oklch(97.8% 0.011 82);
+	--color-secondary: oklch(42% 0.045 200);
+	--color-secondary-content: oklch(97.8% 0.011 82);
+	--color-accent: oklch(74% 0.13 76);
+	--color-accent-content: oklch(21% 0.018 55);
+	--color-neutral: oklch(24% 0.02 55);
+	--color-neutral-content: oklch(96% 0.014 82);
+
+	--color-info: oklch(45% 0.06 235);
+	--color-info-content: oklch(97.8% 0.011 82);
+	--color-success: oklch(45% 0.09 150);
+	--color-success-content: oklch(97.8% 0.011 82);
+	--color-warning: oklch(74% 0.13 76);
+	--color-warning-content: oklch(21% 0.018 55);
+	--color-error: oklch(45% 0.16 27);
+	--color-error-content: oklch(97.8% 0.011 82);
+
+	/* Print, not product: square-ish corners, real borders, no depth. */
+	--radius-selector: 0.125rem;
+	--radius-field: 0.125rem;
+	--radius-box: 0.125rem;
+	--size-selector: 0.25rem;
+	--size-field: 0.28rem;
+	--border: 1px;
+	--depth: 0;
+	--noise: 0;
+}
+
+@theme {
+	--font-serif:
+		'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, Palatino, Georgia, serif;
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+body {
+	font-feature-settings:
+		'liga' 1,
+		'kern' 1;
+	-webkit-font-smoothing: antialiased;
+}
+
+/** A name, a date, a heading: anything standing for a person or a moment. */
+.display {
+	font-family: var(--font-serif);
+	font-weight: 400;
+	letter-spacing: -0.017em;
+}
+
+/** Small caps label above a section, in the accent ink. */
+.eyebrow {
+	font-size: 0.6875rem;
+	font-weight: 700;
+	letter-spacing: 0.15em;
+	text-transform: uppercase;
+	color: var(--color-primary);
+}
+
+/** The rule under a section heading. Hairline, not a divider component. */
+.hairline {
+	border-bottom: 1px solid color-mix(in oklch, var(--color-base-content) 16%, transparent);
+}
+
+/** The heavy rule that opens a page. A printed document has one of these. */
+.rule-thick {
+	border-bottom: 3px solid var(--color-base-content);
+}
+
+/**
+ * The one loud thing on the site: a solid ochre panel behind the words, the
+ * way a printer reverses a line out of a block. Flat fill rather than a
+ * gradient, and `box-decoration-break: clone` so a heading that wraps gets a
+ * clean panel on each line instead of one ragged shape spanning both.
+ */
+.marker {
+	background-color: var(--color-accent);
+	box-decoration-break: clone;
+	-webkit-box-decoration-break: clone;
+	padding: 0.02em 0.14em;
+}
+
+/** Nothing snaps. Everything yields to `prefers-reduced-motion`. */
+@media (prefers-reduced-motion: no-preference) {
+	.settle {
+		animation: settle 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+	}
+}
+
+@keyframes settle {
+	from {
+		opacity: 0;
+		transform: translateY(0.5rem);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
 }
