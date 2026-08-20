@@ -2,6 +2,9 @@
 	import { resolve } from '$app/paths';
 	import { STORAGE_BAYS } from '$lib/funeral/bays';
 	import {
+		loadBoard,
+		newReference,
+		pushBoardEntry,
 		removeBoardEntry,
 		resetBoard,
 		seedBoardOnce,
@@ -9,7 +12,7 @@
 		type BoardEntry,
 		type BoardStep
 	} from '$lib/funeral/case-store';
-	import { STORAGE_LIMIT_DAYS, TRADITIONS } from '$lib/funeral/constraints';
+	import { STORAGE_LIMIT_DAYS, TRADITIONS, traditionById } from '$lib/funeral/constraints';
 	import { committalSites, groupResources } from '$lib/funeral/inventory';
 	import { formatDateInZone, formatInZone, fromZonedInput, toZonedInput } from '$lib/time';
 	import type { PageData } from './$types';
@@ -177,6 +180,44 @@
 		opened = opened === reference ? undefined : reference;
 	}
 
+	/**
+	 * What the building is actually doing next. The board is sorted by
+	 * committal, which is the right order for planning and the wrong one for
+	 * the morning: a preparation at eight belongs above a committal at four,
+	 * even though its case does not.
+	 */
+	const agenda = $derived.by(() => {
+		const now = Date.now();
+		const until = now + 48 * 3_600_000;
+		const items = [];
+
+		for (const entry of cases) {
+			// A case carried over from before the board kept its chain still has
+			// the two moments a family would name.
+			const steps: BoardStep[] = entry.steps ?? [
+				{
+					label: 'Service',
+					startsAt: entry.serviceAt,
+					endsAt: entry.serviceAt,
+					resourceName: '—'
+				},
+				{
+					label: 'Committal',
+					startsAt: entry.committalAt,
+					endsAt: entry.committalAt,
+					resourceName: entry.committalSite
+				}
+			];
+			for (const step of steps) {
+				const at = Date.parse(step.startsAt);
+				if (at < now || at > until) continue;
+				items.push({ ...step, entry, key: `${entry.reference}:${step.label}` });
+			}
+		}
+
+		return items.sort((left, right) => Date.parse(left.startsAt) - Date.parse(right.startsAt));
+	});
+
 	const inventoryGroups = $derived(groupResources(data.services));
 	const sites = $derived(committalSites(data.services));
 
@@ -202,8 +243,41 @@
 	let form = $state<EditForm | undefined>(undefined);
 	let formError = $state<string | undefined>(undefined);
 	let confirmingRemoval = $state(false);
+	/** True while the dialog is taking a case rather than amending one. */
+	let taking = $state(false);
+
+	/**
+	 * A case that arrived by telephone. Most of them do — a hospital rings at
+	 * four in the morning and the family fills nothing in — so the console can
+	 * open one without the family flow having run at all.
+	 */
+	function takeACase(): void {
+		const now = Date.now();
+		const hours = (count: number) => new Date(now + count * 3_600_000).toISOString();
+		form = {
+			reference: '',
+			decedentName: '',
+			arrangerName: '',
+			payerName: '',
+			traditionLabel: traditionById('CATHOLIC').label,
+			bayName: bays.find((bay) => !bay.entry)?.name ?? STORAGE_BAYS[0].name,
+			storageFromLocal: toZonedInput(hours(2), zone),
+			storageToLocal: toZonedInput(hours(72), zone),
+			serviceAtLocal: toZonedInput(hours(50), zone),
+			committalAtLocal: toZonedInput(hours(52), zone),
+			committalSite: sites[0] ?? '—',
+			// Nothing is agreed with the site until somebody telephones them.
+			awaitingThirdParty: true,
+			provisional: false
+		};
+		formError = undefined;
+		confirmingRemoval = false;
+		taking = true;
+		dialog?.showModal();
+	}
 
 	function amend(entry: BoardEntry): void {
+		taking = false;
 		form = {
 			reference: entry.reference,
 			decedentName: entry.decedentName,
@@ -258,7 +332,7 @@
 			return;
 		}
 
-		board = updateBoardEntry(form.reference, {
+		const amended = {
 			decedentName: form.decedentName.trim(),
 			arrangerName: form.arrangerName.trim(),
 			payerName: form.payerName.trim() || form.arrangerName.trim(),
@@ -271,7 +345,19 @@
 			committalSite: form.committalSite,
 			awaitingThirdParty: form.awaitingThirdParty,
 			provisional: form.provisional
-		});
+		};
+
+		if (taking) {
+			// The reference is derived from the name and the day, so the same
+			// case taken twice by two people does not sprout two of them.
+			pushBoardEntry({
+				reference: newReference(storageFrom, amended.decedentName),
+				...amended
+			});
+			board = loadBoard();
+		} else {
+			board = updateBoardEntry(form.reference, amended);
+		}
 		dialog?.close();
 	}
 
@@ -313,6 +399,37 @@
 		</div>
 	{/each}
 </dl>
+
+<section class="mt-14">
+	<h2 class="eyebrow">The next two days</h2>
+	<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-65">
+		Every step of every case, in the order the building will do them. This is not the board's order
+		— a preparation at eight comes before a committal at four, whatever their cases are doing.
+	</p>
+	{#if agenda.length > 0}
+		<ul class="mt-4 space-y-2">
+			{#each agenda as item (item.key)}
+				<li class="flex flex-wrap items-baseline gap-x-3 border-b border-base-200 pb-2 text-sm">
+					<span class="w-40 shrink-0 tabular-nums opacity-70">
+						{formatDateInZone(item.startsAt, zone)},
+						{formatInZone(item.startsAt, zone)}
+					</span>
+					<span class="display">{item.label}</span>
+					<span class="opacity-60">{item.resourceName}</span>
+					<span class="ml-auto flex items-baseline gap-3">
+						<span class="opacity-70">{item.entry.decedentName}</span>
+						<span class="font-mono text-xs opacity-45">{item.entry.reference}</span>
+						{#if item.entry.provisional}
+							<span class="badge badge-outline badge-xs badge-warning">Provisional</span>
+						{/if}
+					</span>
+				</li>
+			{/each}
+		</ul>
+	{:else}
+		<p class="mt-4 text-sm opacity-55">Nothing in the next two days.</p>
+	{/if}
+</section>
 
 <section class="mt-14">
 	<h2 class="eyebrow">Cold storage</h2>
@@ -368,10 +485,14 @@
 </section>
 
 <section class="mt-14">
-	<h2 class="eyebrow">The board</h2>
+	<div class="flex flex-wrap items-baseline justify-between gap-4">
+		<h2 class="eyebrow">The board</h2>
+		<button class="btn btn-outline btn-xs" onclick={takeACase}>Take a case</button>
+	</div>
 	<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-65">
 		Every case the home is carrying, soonest committal first. Open one to see the whole chain as it
 		was booked; amend one when the cemetery telephones back with a different hour, which they will.
+		Most cases arrive by telephone rather than through the family flow, so one can be taken here.
 	</p>
 	<div class="mt-4 overflow-x-auto">
 		<table class="table table-sm">
@@ -633,9 +754,13 @@
 	<div class="modal-box max-w-2xl border border-base-300">
 		{#if form}
 			<form onsubmit={save}>
-				<p class="eyebrow">Amending</p>
-				<h3 class="display mt-1 text-2xl">{form.decedentName || 'This case'}</h3>
-				<p class="mt-1 font-mono text-xs opacity-55">{form.reference}</p>
+				<p class="eyebrow">{taking ? 'Taking a case' : 'Amending'}</p>
+				<h3 class="display mt-1 text-2xl">
+					{form.decedentName || (taking ? 'A case by telephone' : 'This case')}
+				</h3>
+				<p class="mt-1 font-mono text-xs opacity-55">
+					{form.reference || 'A reference is given when this is saved'}
+				</p>
 
 				<div class="mt-6 grid gap-4 sm:grid-cols-2">
 					<label class="form-control sm:col-span-2">
@@ -756,17 +881,25 @@
 						</button>
 						<button type="button" class="btn btn-error btn-sm" onclick={remove}>Remove</button>
 					{:else}
+						{#if !taking}
+							<button
+								type="button"
+								class="btn mr-auto btn-ghost text-error btn-sm"
+								onclick={() => (confirmingRemoval = true)}
+							>
+								Remove
+							</button>
+						{/if}
 						<button
 							type="button"
-							class="btn mr-auto btn-ghost text-error btn-sm"
-							onclick={() => (confirmingRemoval = true)}
+							class="btn btn-ghost btn-sm {taking ? 'ml-auto' : ''}"
+							onclick={() => dialog?.close()}
 						>
-							Remove
-						</button>
-						<button type="button" class="btn btn-ghost btn-sm" onclick={() => dialog?.close()}>
 							Cancel
 						</button>
-						<button type="submit" class="btn btn-primary btn-sm">Save the amendment</button>
+						<button type="submit" class="btn btn-primary btn-sm">
+							{taking ? 'Take the case' : 'Save the amendment'}
+						</button>
 					{/if}
 				</div>
 			</form>

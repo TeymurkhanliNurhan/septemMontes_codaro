@@ -392,7 +392,7 @@
 		{/if}
 
 		<figure
-			class="settle w-[min(100vw-2rem,52rem)] max-w-none grid items-center gap-6 sm:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] sm:gap-8"
+			class="settle grid w-[min(100vw-2rem,52rem)] max-w-none items-center gap-6 sm:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] sm:gap-8"
 		>
 			<img
 				src="/afterlife.webp"
