@@ -45,6 +45,15 @@ export class User {
   })
   role: UserRole;
 
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'password_hash',
+    nullable: true,
+    select: false,
+  })
+  passwordHash: string | null;
+
   @Column({ type: 'jsonb', name: 'metadata', default: {} })
   metadata: Record<string, unknown>;
 

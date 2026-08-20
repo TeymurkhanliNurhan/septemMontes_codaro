@@ -3,77 +3,79 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Patch,
   Post,
   Query,
-  Req,
-  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
-import type { AuthenticatedRequest } from '../common/types/authenticated-request';
-import { UserService } from './user.service';
+import type { AuthUser } from '../common/types/authenticated-request';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
+import { UserService } from './user.service';
 
 @ApiTags('User')
+@ApiCookieAuth('session')
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth('JWT-auth')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  private getOrganizationId(req: AuthenticatedRequest): string {
-    return req.user.organizationId;
-  }
-
   @Get()
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'List users in organization' })
+  @ApiOperation({ summary: 'List users in your organization' })
   @ApiQuery({ name: 'id', required: false })
-  @ApiResponse({ status: 200, type: [UserResponseDto] })
-  async findAll(@Req() req: AuthenticatedRequest, @Query('id') id?: string) {
-    const organizationId = this.getOrganizationId(req);
-    if (id) {
-      return this.userService.findOne(id, organizationId);
-    }
-    return this.userService.findByOrganization(organizationId);
+  @ApiResponse({ status: HttpStatus.OK, type: [UserResponseDto] })
+  findAll(
+    @CurrentUser() actor: AuthUser,
+    @Query('id') id?: string,
+  ): Promise<UserResponseDto | UserResponseDto[]> {
+    return id
+      ? this.userService.findOne(id, actor.organizationId)
+      : this.userService.findByOrganization(actor.organizationId);
   }
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Create user' })
-  @ApiResponse({ status: 201, type: UserResponseDto })
-  create(@Req() req: AuthenticatedRequest, @Body() dto: CreateUserDto) {
-    return this.userService.create({
-      ...dto,
-      organizationId: dto.organizationId ?? this.getOrganizationId(req),
-    });
+  @ApiOperation({ summary: 'Create a user in your organization' })
+  @ApiResponse({ status: HttpStatus.CREATED, type: UserResponseDto })
+  create(
+    @CurrentUser() actor: AuthUser,
+    @Body() dto: CreateUserDto,
+  ): Promise<UserResponseDto> {
+    return this.userService.create(dto, actor);
   }
 
   @Patch()
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Update user' })
-  @ApiResponse({ status: 200, type: UserResponseDto })
-  update(@Req() req: AuthenticatedRequest, @Body() dto: UpdateUserDto) {
-    return this.userService.update(dto, this.getOrganizationId(req));
+  @ApiOperation({ summary: 'Update a user' })
+  @ApiResponse({ status: HttpStatus.OK, type: UserResponseDto })
+  update(
+    @CurrentUser() actor: AuthUser,
+    @Body() dto: UpdateUserDto,
+  ): Promise<UserResponseDto> {
+    return this.userService.update(dto, actor);
   }
 
   @Delete()
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Delete user' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a user' })
   @ApiQuery({ name: 'id', required: true })
-  remove(@Req() req: AuthenticatedRequest, @Query('id') id: string) {
-    return this.userService.remove(id, this.getOrganizationId(req));
+  remove(
+    @CurrentUser() actor: AuthUser,
+    @Query('id') id: string,
+  ): Promise<void> {
+    return this.userService.remove(id, actor);
   }
 }

@@ -2,9 +2,12 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AuthModule } from './auth/auth.module';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import sessionConfig from './auth/config/session.config';
+import { Session } from './auth/entities/session.entity';
+import { SessionAuthGuard } from './auth/guards/session-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -35,7 +38,13 @@ import { ServiceResource } from './service-resource/entities/service-resource.en
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, load: [sessionConfig] }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        { name: 'default', ttl: 60_000, limit: 300 },
+        { name: 'login', ttl: 60_000, limit: 10 },
+      ],
+    }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -47,6 +56,7 @@ import { ServiceResource } from './service-resource/entities/service-resource.en
         database: configService.get<string>('DB_DATABASE', 'septem_montes'),
         entities: [
           Organization,
+          Session,
           User,
           Customer,
           Resource,
@@ -81,7 +91,8 @@ import { ServiceResource } from './service-resource/entities/service-resource.en
   controllers: [AppController],
   providers: [
     AppService,
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: SessionAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],

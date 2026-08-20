@@ -1,105 +1,148 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
+import { PasswordService } from '../auth/services/password.service';
+import { SessionService } from '../auth/services/session.service';
 import { UserRole } from '../common/enums/user-role.enum';
-import { User } from './entities/user.entity';
+import { AuthUser } from '../common/types/authenticated-request';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
+import { User } from './entities/user.entity';
+import { UserAccessPolicy } from './user-access.policy';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private readonly users: Repository<User>,
+    private readonly passwords: PasswordService,
+    private readonly sessions: SessionService,
+    private readonly policy: UserAccessPolicy,
   ) {}
 
   async findByOrganization(organizationId: string): Promise<UserResponseDto[]> {
-    const items = await this.userRepository.find({
-      where: { organizationId },
-      order: { createdAt: 'DESC' },
+    const users = await this.baseQuery()
+      .where('user.organizationId = :organizationId', { organizationId })
+      .orderBy('user.createdAt', 'DESC')
+      .getMany();
+
+    return users.map((user) => UserResponseDto.fromEntity(user));
+  }
+
+  async findOne(id: string, organizationId: string): Promise<UserResponseDto> {
+    return UserResponseDto.fromEntity(
+      await this.findInOrganization(id, organizationId),
+    );
+  }
+
+  findLoginCandidates(email: string, organizationId?: string): Promise<User[]> {
+    const query = this.baseQuery()
+      .leftJoinAndSelect('user.organization', 'organization')
+      .where('LOWER(user.email) = LOWER(:email)', { email });
+
+    if (organizationId) {
+      query.andWhere('user.organizationId = :organizationId', {
+        organizationId,
+      });
+    }
+
+    return query.getMany();
+  }
+
+  findByIdWithPassword(id: string): Promise<User | null> {
+    return this.baseQuery().where('user.id = :id', { id }).getOne();
+  }
+
+  async setPassword(id: string, password: string): Promise<void> {
+    await this.users.update(id, {
+      passwordHash: await this.passwords.hash(password),
     });
-    return items.map((item) => this.toDto(item));
   }
 
-  async findOne(id: string, organizationId?: string): Promise<UserResponseDto> {
-    const item = await this.userRepository.findOne({ where: { id } });
-    if (!item) {
-      throw new NotFoundException(`User ${id} not found`);
-    }
-    if (organizationId && item.organizationId !== organizationId) {
-      throw new ForbiddenException('User belongs to another organization');
-    }
-    return this.toDto(item);
+  async create(dto: CreateUserDto, actor: AuthUser): Promise<UserResponseDto> {
+    const role = dto.role ?? UserRole.STAFF;
+    this.policy.assertCanAssignRole(actor, role);
+
+    const user = await this.users.save(
+      this.users.create({
+        organizationId: actor.organizationId,
+        name: dto.name,
+        email: normalizeEmail(dto.email),
+        role,
+        metadata: dto.metadata ?? {},
+        passwordHash: dto.password
+          ? await this.passwords.hash(dto.password)
+          : null,
+      }),
+    );
+
+    return UserResponseDto.fromEntity(user);
   }
 
-  async findByEmail(
+  async update(dto: UpdateUserDto, actor: AuthUser): Promise<UserResponseDto> {
+    const user = await this.findInOrganization(dto.id, actor.organizationId);
+    this.policy.assertCanManage(actor, user);
+
+    if (dto.role !== undefined && dto.role !== user.role) {
+      this.policy.assertNotSelfRoleChange(actor, user);
+      this.policy.assertCanAssignRole(actor, dto.role);
+    }
+
+    const saved = await this.users.save(await this.applyChanges(user, dto));
+
+    if (dto.password !== undefined) {
+      await this.sessions.revokeAllForUser(saved.id);
+    }
+
+    return UserResponseDto.fromEntity(saved);
+  }
+
+  async remove(id: string, actor: AuthUser): Promise<void> {
+    const user = await this.findInOrganization(id, actor.organizationId);
+    this.policy.assertNotSelfDeletion(actor, user);
+    this.policy.assertCanManage(actor, user);
+
+    await this.users.delete(user.id);
+  }
+
+  private async applyChanges(user: User, dto: UpdateUserDto): Promise<User> {
+    if (dto.name !== undefined) {
+      user.name = dto.name;
+    }
+    if (dto.email !== undefined) {
+      user.email = normalizeEmail(dto.email);
+    }
+    if (dto.role !== undefined) {
+      user.role = dto.role;
+    }
+    if (dto.metadata !== undefined) {
+      user.metadata = dto.metadata;
+    }
+    if (dto.password !== undefined) {
+      user.passwordHash = await this.passwords.hash(dto.password);
+    }
+    return user;
+  }
+
+  private async findInOrganization(
+    id: string,
     organizationId: string,
-    email: string,
-  ): Promise<User | null> {
-    return this.userRepository.findOne({ where: { organizationId, email } });
-  }
+  ): Promise<User> {
+    const user = await this.findByIdWithPassword(id);
 
-  async create(dto: CreateUserDto): Promise<UserResponseDto> {
-    const entity = this.userRepository.create({
-      organizationId: dto.organizationId,
-      name: dto.name,
-      email: dto.email,
-      role: dto.role ?? UserRole.STAFF,
-      metadata: dto.metadata ?? {},
-    });
-    const saved = await this.userRepository.save(entity);
-    return this.toDto(saved);
-  }
-
-  async update(
-    dto: UpdateUserDto,
-    organizationId?: string,
-  ): Promise<UserResponseDto> {
-    const entity = await this.userRepository.findOne({
-      where: { id: dto.id },
-    });
-    if (!entity) {
-      throw new NotFoundException(`User ${dto.id} not found`);
-    }
-    if (organizationId && entity.organizationId !== organizationId) {
-      throw new ForbiddenException('User belongs to another organization');
-    }
-    Object.assign(entity, {
-      ...(dto.name !== undefined && { name: dto.name }),
-      ...(dto.email !== undefined && { email: dto.email }),
-      ...(dto.role !== undefined && { role: dto.role }),
-      ...(dto.metadata !== undefined && { metadata: dto.metadata }),
-    });
-    const saved = await this.userRepository.save(entity);
-    return this.toDto(saved);
-  }
-
-  async remove(id: string, organizationId?: string): Promise<void> {
-    const entity = await this.userRepository.findOne({ where: { id } });
-    if (!entity) {
+    if (!user || user.organizationId !== organizationId) {
       throw new NotFoundException(`User ${id} not found`);
     }
-    if (organizationId && entity.organizationId !== organizationId) {
-      throw new ForbiddenException('User belongs to another organization');
-    }
-    await this.userRepository.delete(id);
+
+    return user;
   }
 
-  private toDto(entity: User): UserResponseDto {
-    return {
-      id: entity.id,
-      organizationId: entity.organizationId,
-      name: entity.name,
-      email: entity.email,
-      role: entity.role,
-      metadata: entity.metadata,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-    };
+  private baseQuery(): SelectQueryBuilder<User> {
+    return this.users.createQueryBuilder('user').addSelect('user.passwordHash');
   }
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
 }
