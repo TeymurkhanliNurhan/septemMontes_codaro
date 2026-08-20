@@ -195,6 +195,18 @@ export class PublicBookingService {
    * aborting one with 40P01 — a 500 for that guest rather than a retryable 409,
    * after both have waited out `deadlock_timeout`.
    *
+   * Note what this costs on the happy path, not just under contention: the
+   * transaction now locks *every* candidate even when the first one is free,
+   * where before it locked exactly one. Under AUTO that is the whole capable
+   * set on every request, so two guests booking the same service at completely
+   * unrelated times serialize on each other. Under CUSTOMER_CHOICE the list is
+   * a singleton and nothing changed. The trade is deliberate — deadlock-free
+   * and serialized beats fast and occasionally 500 — and at single-digit
+   * resources per service the breadth costs nothing measurable. If throughput
+   * ever matters, `FOR UPDATE SKIP LOCKED` is the escape hatch, at the price of
+   * turning "another transaction is mid-flight on this row" into a spurious
+   * 409.
+   *
    * Residual, deliberately not fixed here: the availability re-derivations
    * still run one per candidate with every lock held, so a service with many
    * resources at a fully-booked instant holds them all for the duration of N
@@ -209,9 +221,11 @@ export class PublicBookingService {
   ): Promise<Resource> {
     // Unreachable today — `candidates` rejects an empty capable set before this
     // runs — but kept so no future change can reach the `IN ()` below, which is
-    // a syntax error rather than an empty result.
+    // a syntax error rather than an empty result. It mirrors the reachable
+    // guard deliberately: no candidates means the service is not bookable, not
+    // that this instant was taken, so it must not invite a retry either.
     if (candidates.length === 0) {
-      throw new ConflictException('That time was just taken');
+      throw new NotFoundException('This service is not currently bookable');
     }
 
     await manager
