@@ -1,23 +1,8 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsEnum,
-  IsObject,
-  IsOptional,
-  IsString,
-  IsUUID,
-} from 'class-validator';
-import { BookingStatus } from '../../common/enums/booking-status.enum';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsObject, IsOptional, IsString, Validate } from 'class-validator';
+import { IsPlainObjectConstraint } from '../../resource/dto/create-resource.dto';
 
 export class UpdateBookingDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  id: string;
-
-  @ApiPropertyOptional({ enum: BookingStatus })
-  @IsOptional()
-  @IsEnum(BookingStatus)
-  status?: BookingStatus;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -28,8 +13,13 @@ export class UpdateBookingDto {
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    example: {},
+  })
   @IsOptional()
   @IsObject()
+  @Validate(IsPlainObjectConstraint)
   metadata?: Record<string, unknown>;
 }

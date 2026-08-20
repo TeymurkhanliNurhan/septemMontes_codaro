@@ -1,59 +1,142 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
+import { Booking } from '../booking/entities/booking.entity';
+import { BookingEventType } from '../common/enums/booking-event-type.enum';
 import { BookingEvent } from './entities/booking-event.entity';
-import { CreateBookingEventDto } from './dto/create-event.dto';
-import { UpdateBookingEventDto } from './dto/update-event.dto';
-import { BookingEventResponseDto } from './dto/event-response.dto';
+import {
+  BookingEventListResponseDto,
+  BookingEventResponseDto,
+} from './dto/event-response.dto';
+
+export type CreateBookingEventParams = {
+  bookingId: string;
+  eventType: BookingEventType;
+  actorUserId?: string | null;
+  payload?: Record<string, unknown>;
+  /** When set, verifies the booking belongs to this organization. */
+  organizationId?: string;
+  /** Optional transactional manager for atomic booking+event writes. */
+  manager?: EntityManager;
+};
 
 @Injectable()
 export class BookingEventService {
   constructor(
     @InjectRepository(BookingEvent)
     private readonly repo: Repository<BookingEvent>,
+    @InjectRepository(Booking)
+    private readonly bookingRepo: Repository<Booking>,
   ) {}
 
-  async findByFilter(bookingId: string): Promise<BookingEventResponseDto[]> {
+  /**
+   * Append-only domain helper. Prefer calling from Booking commands inside
+   * the same transaction as the booking state change.
+   */
+  async createBookingEvent(
+    params: CreateBookingEventParams,
+  ): Promise<BookingEventResponseDto> {
+    const {
+      bookingId,
+      eventType,
+      actorUserId = null,
+      payload = {},
+      organizationId,
+      manager,
+    } = params;
+
+    if (!Object.values(BookingEventType).includes(eventType)) {
+      throw new BadRequestException(`Invalid booking event type: ${eventType}`);
+    }
+
+    if (organizationId) {
+      await this.assertBookingInOrganization(
+        bookingId,
+        organizationId,
+        manager,
+      );
+    }
+
+    const eventRepo = manager
+      ? manager.getRepository(BookingEvent)
+      : this.repo;
+
+    const entity = eventRepo.create({
+      bookingId,
+      eventType,
+      actorUserId,
+      payload: payload ?? {},
+    });
+    const saved = await eventRepo.save(entity);
+    return this.toDto(saved);
+  }
+
+  async findByBooking(
+    bookingId: string,
+    organizationId: string,
+  ): Promise<BookingEventListResponseDto> {
+    await this.assertBookingInOrganization(bookingId, organizationId);
+
     const items = await this.repo.find({
       where: { bookingId },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'ASC' },
     });
-    return items.map((item) => this.toDto(item));
+
+    return { data: items.map((item) => this.toDto(item)) };
   }
 
-  async findAll(): Promise<BookingEventResponseDto[]> {
-    const items = await this.repo.find({ order: { createdAt: 'DESC' } });
-    return items.map((item) => this.toDto(item));
-  }
+  async findOne(
+    bookingId: string,
+    eventId: string,
+    organizationId: string,
+  ): Promise<BookingEventResponseDto> {
+    await this.assertBookingInOrganization(bookingId, organizationId);
 
-  async findOne(id: string): Promise<BookingEventResponseDto> {
-    const item = await this.repo.findOne({ where: { id } });
-    if (!item) throw new NotFoundException('BookingEvent ' + id + ' not found');
+    const item = await this.repo.findOne({
+      where: { id: eventId, bookingId },
+    });
+    if (!item) {
+      throw new NotFoundException(`BookingEvent ${eventId} not found`);
+    }
     return this.toDto(item);
   }
 
-  async create(dto: CreateBookingEventDto): Promise<BookingEventResponseDto> {
-    const entity = this.repo.create(dto as Partial<BookingEvent>);
-    const saved = await this.repo.save(entity);
-    return this.toDto(saved);
-  }
+  private async assertBookingInOrganization(
+    bookingId: string,
+    organizationId: string,
+    manager?: EntityManager,
+  ): Promise<Booking> {
+    if (!organizationId) {
+      throw new BadRequestException(
+        'Authenticated user is missing organization context',
+      );
+    }
 
-  async update(dto: UpdateBookingEventDto): Promise<BookingEventResponseDto> {
-    const entity = await this.repo.findOne({ where: { id: dto.id } });
-    if (!entity)
-      throw new NotFoundException('BookingEvent ' + dto.id + ' not found');
-    Object.assign(entity, dto);
-    const saved = await this.repo.save(entity);
-    return this.toDto(saved);
-  }
+    const bookingRepo = manager
+      ? manager.getRepository(Booking)
+      : this.bookingRepo;
 
-  async remove(id: string): Promise<void> {
-    const result = await this.repo.delete(id);
-    if (!result.affected)
-      throw new NotFoundException('BookingEvent ' + id + ' not found');
+    const booking = await bookingRepo.findOne({
+      where: { id: bookingId, organizationId },
+    });
+    if (!booking) {
+      throw new NotFoundException(`Booking ${bookingId} not found`);
+    }
+    return booking;
   }
 
   private toDto(entity: BookingEvent): BookingEventResponseDto {
-    return entity;
+    return {
+      id: entity.id,
+      bookingId: entity.bookingId,
+      actorUserId: entity.actorUserId,
+      eventType: entity.eventType,
+      payload: entity.payload ?? {},
+      createdAt: entity.createdAt.toISOString(),
+    };
   }
 }

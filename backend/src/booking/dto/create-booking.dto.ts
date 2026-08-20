@@ -1,19 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
-  IsEnum,
   IsObject,
   IsOptional,
   IsString,
   IsUUID,
+  Validate,
 } from 'class-validator';
-import { BookingStatus } from '../../common/enums/booking-status.enum';
+import { IsPlainObjectConstraint } from '../../resource/dto/create-resource.dto';
 
 export class CreateBookingDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  organizationId: string;
-
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
@@ -24,18 +20,13 @@ export class CreateBookingDto {
   @IsUUID()
   serviceId?: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String, format: 'date-time' })
   @IsDateString()
   startsAt: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String, format: 'date-time' })
   @IsDateString()
   endsAt: string;
-
-  @ApiPropertyOptional({ enum: BookingStatus })
-  @IsOptional()
-  @IsEnum(BookingStatus)
-  status?: BookingStatus;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -47,8 +38,13 @@ export class CreateBookingDto {
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({ example: {} })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    example: {},
+  })
   @IsOptional()
   @IsObject()
+  @Validate(IsPlainObjectConstraint)
   metadata?: Record<string, unknown>;
 }
