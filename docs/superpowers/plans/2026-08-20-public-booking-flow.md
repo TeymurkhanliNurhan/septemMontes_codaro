@@ -2160,6 +2160,29 @@ request — the UI only ever offers grid slots. Re-adding alignment means giving
 `computeSlots` a stable anchor, which is a change to the slot engine, not a check
 bolted onto its caller.
 
+## Open item: `resolveLocal` honours an embedded designator over its `zone`
+
+`resolveLocal(date, time, zone)` builds `${date}T${time}` and hands it to luxon.
+If `time` carries its own zone designator, luxon uses that and **silently ignores
+the `zone` argument**:
+
+```
+resolveLocal('2026-08-24', '09:00:00Z',      'Europe/Berlin')  -> 11:00+02:00
+resolveLocal('2026-08-24', '09:00:00+05:00', 'Europe/Berlin')  -> 06:00+02:00
+```
+
+Unreachable today: `time` only ever comes from a Postgres `time` column, which
+yields `HH:mm:ss`. It becomes a silent wrong instant the moment a user-supplied
+string reaches that parameter. The honest guard is an explicit assertion rather
+than an incidental side effect of a helper:
+
+```ts
+if (!/^\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(time)) throw new Error(`Invalid time: ${time}`);
+```
+
+Found while deleting `normalizeTime`, which had been rejecting `HH:mmZ` as an
+accident of string-splitting while leaving the same hole open for `HH:mm:ssZ`.
+
 ## Deliberately not built
 
 Carried over from the spec, and out of scope here:
