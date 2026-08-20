@@ -2183,6 +2183,30 @@ if (!/^\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(time)) throw new Error(`Invalid time:
 Found while deleting `normalizeTime`, which had been rejecting `HH:mmZ` as an
 accident of string-splitting while leaving the same hole open for `HH:mm:ssZ`.
 
+## Open items from the Task 7 concurrency review
+
+**Locks are held while unbounded query work runs.** `candidates` is every capable
+resource for the service, uncapped. At a fully-booked instant with 40 resources the
+transaction holds 40 `FOR UPDATE` row locks and runs 40 full availability
+derivations before throwing 409, blocking every other booking on those rows until
+rollback. The public throttle is 10/min **per IP**, so distributed traffic is not
+bounded by it. Deliberately not capped — a cap silently makes some resources
+unbookable, which is worse. Acquiring all locks in one statement collapses N
+round-trips into one; the per-candidate re-derivations remain. A cheap unlocked
+pre-filter before the locked re-check is the natural next step.
+
+**The concurrency guarantee is unit-tested as ordering only.** The fake's free-set
+is static, so nothing demonstrates the lock *changing* an answer — only that the
+lock precedes the check. A unit test cannot open two real transactions. Proving it
+needs two genuinely concurrent `create` calls against Postgres, which belongs in
+Task 9's live walk.
+
+**The fake transaction cannot roll back.** It invokes the callback directly, so
+"writes no booking when the slot was just taken" passes only because that throw
+precedes the first write. Rollback safety currently holds by construction — the
+file has zero `try`/`catch`, so every throw propagates out of
+`dataSource.transaction` — but it is verified by reading, not by test.
+
 ## Deliberately not built
 
 Carried over from the spec, and out of scope here:
