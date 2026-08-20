@@ -73,7 +73,7 @@
 				>
 					<span
 						class="w-px flex-1 {constraint.binding
-							? 'bg-primary'
+							? 'bg-secondary'
 							: 'bg-base-content/20'} {constraint.hard ? '' : 'opacity-50'}"
 					></span>
 				</div>
@@ -88,7 +88,7 @@
 
 			<!-- The feasible region itself. -->
 			<div
-				class="absolute top-1/2 h-9 -translate-y-1/2 rounded-sm bg-primary/20 ring-1 ring-primary/45"
+				class="absolute top-1/2 h-9 -translate-y-1/2 bg-accent/45 ring-1 ring-base-content/40"
 				style="left: {left}%; width: {Math.max(0, right - left)}%;"
 			></div>
 			<div class="absolute top-1/2 h-px w-full -translate-y-1/2 bg-base-content/15"></div>
@@ -103,7 +103,7 @@
 					class="mt-1.5 h-2 w-2 shrink-0 rounded-full {constraint.binding
 						? constraint.kind === 'LATEST'
 							? 'bg-error'
-							: 'bg-primary'
+							: 'bg-secondary'
 						: 'bg-base-content/25'}"
 					aria-hidden="true"
 				></span>

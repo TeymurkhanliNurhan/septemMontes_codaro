@@ -411,9 +411,7 @@
 	{/if}
 
 	{#if chosen}
-		<div
-			class="settle sticky bottom-0 mt-10 border-t border-base-300 bg-base-100/95 py-5 backdrop-blur"
-		>
+		<div class="settle sticky bottom-0 mt-10 border-t-2 border-base-content bg-base-100 py-5">
 			<div class="flex flex-wrap items-center justify-between gap-4">
 				<p class="text-sm">
 					<span class="opacity-55">Chosen:</span>
@@ -434,10 +432,12 @@
 		reads as a tool and never as an action the family is being invited to take.
 	-->
 	<div class="mt-16 rounded-box border border-dashed border-base-300 p-4">
-		<p class="eyebrow">What happens when a fact changes</p>
-		<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-60">
-			A coroner slipping a day is the commonest thing that happens to a funeral, and it moves
-			everything downstream of it. Nothing here is re-entered by hand.
+		<p class="eyebrow">The only demo button on this site</p>
+		<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-65">
+			A coroner slipping a day is the single most common thing that happens to a funeral, and it
+			drags five bookings and a refrigerated bay along behind it. Press one and watch the window
+			re-derive. Sometimes the funeral does not move at all, and the app will tell you which
+			constraint was already holding it later — that answer is the point of the whole thing.
 		</p>
 		<div class="mt-3 flex flex-wrap gap-3">
 			<button class="btn btn-outline btn-sm" onclick={() => delayRelease(24)}>

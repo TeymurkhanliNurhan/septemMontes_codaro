@@ -168,10 +168,10 @@
 								class="absolute inset-y-0 flex items-center overflow-hidden px-2
 									{scale.before(bar.startsAt) ? 'rounded-r-sm' : 'rounded-sm'}
 									{bar.held
-									? 'bg-secondary/25 ring-1 ring-secondary/40'
+									? 'bg-secondary/30 ring-1 ring-secondary/50'
 									: bar.thirdParty
-										? 'bg-warning/30 ring-1 ring-warning/50'
-										: 'bg-primary/85 text-primary-content'}"
+										? 'bg-warning ring-1 ring-base-content/30'
+										: 'bg-neutral text-neutral-content'}"
 								style="left: {scale.percent(bar.startsAt)}%; width: {Math.max(
 									scale.width(bar.startsAt, bar.endsAt),
 									1.5
@@ -200,13 +200,13 @@
 	{#if !compact}
 		<div class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[0.68rem] opacity-60">
 			<span class="flex items-center gap-1.5">
-				<span class="h-2.5 w-4 rounded-xs bg-secondary/40"></span> held continuously
+				<span class="h-2.5 w-4 bg-secondary/35"></span> held continuously
 			</span>
 			<span class="flex items-center gap-1.5">
-				<span class="h-2.5 w-4 rounded-xs bg-primary/85"></span> ours to schedule
+				<span class="h-2.5 w-4 bg-neutral"></span> ours to schedule
 			</span>
 			<span class="flex items-center gap-1.5">
-				<span class="h-2.5 w-4 rounded-xs bg-warning/50"></span> third party, awaiting their confirmation
+				<span class="h-2.5 w-4 bg-warning"></span> third party, awaiting their confirmation
 			</span>
 		</div>
 	{/if}

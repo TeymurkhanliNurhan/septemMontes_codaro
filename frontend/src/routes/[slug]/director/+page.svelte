@@ -111,10 +111,11 @@
 
 <section class="mt-10">
 	<h2 class="eyebrow">Cold storage</h2>
-	<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-60">
-		Three bays, and every day a case sits in one is a day it is not available to the next family.
-		This is the resource that runs out, and it is why a delayed release is a scheduling problem and
-		not only a sad one.
+	<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-65">
+		Three bays. Every day a case sits in one is a day it is not there for the next family, and a bay
+		cannot be overbooked, apologised to, or asked to wait in the lobby. This is the resource that
+		actually runs out, and it is why a coroner running late is a scheduling problem and not only a
+		sad one.
 	</p>
 	<div class="mt-4 grid gap-4 sm:grid-cols-3">
 		{#each bays as bay (bay.name)}
@@ -210,9 +211,10 @@
 {#if awaiting.length > 0}
 	<section class="mt-14">
 		<h2 class="eyebrow">Not ours to confirm</h2>
-		<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-60">
-			Cemeteries and crematoria hold their own diaries. We can hold everything either side of a
-			committal and still not have the committal.
+		<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-65">
+			Cemeteries and crematoria keep their own diaries and have no intention of sharing them. We can
+			hold the chapel, the celebrant, the hearse and the bearers, and still not have the hole. These
+			are confirmed by telephone, by a man called Piotr, between nine and eleven.
 		</p>
 		<ul class="mt-4 space-y-2">
 			{#each awaiting as entry (entry.reference)}

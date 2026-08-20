@@ -18,8 +18,8 @@
 <div class="flex min-h-screen flex-col bg-base-100">
 	<header class="hairline">
 		<div class="mx-auto flex w-full max-w-5xl items-baseline justify-between gap-4 px-5 py-5">
-			<a href={resolve('/')} class="display text-lg tracking-tight">
-				Septem <span class="opacity-55">Funeral</span>
+			<a href={resolve('/')} class="display text-xl tracking-tight">
+				Septem <span class="text-primary">Funeral</span>
 			</a>
 			{#if staff}
 				<span class="eyebrow">Director's console</span>
@@ -38,7 +38,10 @@
 			class="mx-auto flex w-full max-w-5xl flex-wrap justify-between gap-3 px-5 py-6 text-xs opacity-50"
 		>
 			<span>Septem Funeral · Warsaw</span>
-			<span>Arrangements are held, never charged for, until a director has spoken with you.</span>
+			<span>
+				No countdown timers, no “only 2 slots left”, no abandoned-cart email. We considered them for
+				about a second.
+			</span>
 		</div>
 	</footer>
 </div>

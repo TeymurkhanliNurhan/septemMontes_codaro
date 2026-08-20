@@ -326,8 +326,9 @@
 				<h2 class="display text-xl">Who settles the account</h2>
 			</div>
 			<p class="mt-3 text-sm leading-relaxed opacity-55">
-				Often not the person arranging. An executor, an insurer, a brother abroad. We ask now so
-				nobody receives an invoice they were not expecting.
+				Usually not the person arranging. An executor, an insurer, a brother abroad who offered on
+				the phone and will be held to it. We ask now, because finding out afterwards is how a family
+				gets invoiced twice.
 			</p>
 			<label class="mt-4 flex items-center gap-3 text-sm">
 				<input type="checkbox" class="checkbox checkbox-sm" bind:checked={payerIsArranger} />
