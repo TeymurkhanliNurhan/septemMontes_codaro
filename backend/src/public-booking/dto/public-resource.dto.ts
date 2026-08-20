@@ -7,6 +7,6 @@ export class PublicResourceDto {
   @ApiProperty()
   name: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   resourceType: string | null;
 }
