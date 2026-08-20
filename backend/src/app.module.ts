@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { LoggerModule } from './common/logger/logger.module';
 import { AuthModule } from './auth/auth.module';
 import sessionConfig from './auth/config/session.config';
 import { Session } from './auth/entities/session.entity';
@@ -39,6 +40,7 @@ import { ServiceResource } from './service-resource/entities/service-resource.en
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [sessionConfig] }),
+    LoggerModule,
     ThrottlerModule.forRoot({
       throttlers: [
         { name: 'default', ttl: 60_000, limit: 300 },
