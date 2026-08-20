@@ -4,8 +4,10 @@ export interface AuthUser {
   id: string;
   userId: string;
   organizationId: string;
-  role: UserRole;
+  name: string;
   email: string;
+  role: UserRole;
+  sessionId: string;
 }
 
 export interface AuthenticatedRequest {

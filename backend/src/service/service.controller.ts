@@ -7,17 +7,14 @@ import {
   Post,
   Query,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import type { AuthenticatedRequest } from '../common/types/authenticated-request';
@@ -28,8 +25,7 @@ import { ServiceResponseDto } from './dto/service-response.dto';
 
 @ApiTags('Service')
 @Controller('services')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth('JWT-auth')
+@ApiCookieAuth('session')
 export class ServiceController {
   constructor(private readonly serviceService: ServiceService) {}
 
