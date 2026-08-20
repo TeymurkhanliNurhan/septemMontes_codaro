@@ -88,6 +88,8 @@ interface SlotCheck {
   resourceId: string;
   startsAt: number;
   search: SlotSearch;
+  /** undefined when the caller forgot to hand over its transaction. */
+  manager: EntityManager | undefined;
 }
 
 interface FakeDb {
@@ -106,6 +108,8 @@ interface FakeDb {
 interface Harness {
   service: PublicBookingService;
   db: FakeDb;
+  /** The exact manager `dataSource.transaction` hands to the callback. */
+  manager: EntityManager;
   /** Lock and availability calls in the order they happened. */
   timeline: string[];
   checks: SlotCheck[];
@@ -214,9 +218,10 @@ function buildAvailability(
       resourceId: string,
       startsAt: number,
       search: SlotSearch,
+      manager?: EntityManager,
     ): Promise<boolean> {
       timeline.push(`check:${resourceId}`);
-      checks.push({ resourceId, startsAt, search });
+      checks.push({ resourceId, startsAt, search, manager });
       return Promise.resolve(db.free.has(resourceId));
     },
   };
@@ -266,6 +271,7 @@ function buildHarness(world: World = {}): Harness {
       dataSource,
     ),
     db,
+    manager,
     timeline,
     checks,
     state,
@@ -386,6 +392,14 @@ describe('PublicBookingService.create', () => {
       expect(timeline).toEqual(['lock:r-1:pessimistic_write', 'check:r-1']);
     });
 
+    it('re-checks on the transaction manager, never a pooled connection', async () => {
+      const { service, manager, checks } = buildHarness();
+
+      await service.create('acme', buildDto());
+
+      expect(checks[0].manager).toBe(manager);
+    });
+
     it('re-checks the exact requested instant', async () => {
       const { service, checks } = buildHarness();
 
@@ -494,6 +508,19 @@ describe('PublicBookingService.create', () => {
       expect(db.bookedResources).toEqual([
         { bookingId: 'booking-1', resourceId: 'r-2' },
       ]);
+    });
+
+    it('falls back to the UTC date when the organization timezone is junk', async () => {
+      const { service, checks } = buildHarness({
+        organizations: [buildOrganization({ timezone: 'Not/AZone' })],
+      });
+
+      await service.create(
+        'acme',
+        buildDto({ startsAt: '2026-09-01T02:00:00.000Z' }),
+      );
+
+      expect(checks[0].search.from).toBe('2026-09-01');
     });
 
     it('derives the slot search date from the organization timezone', async () => {

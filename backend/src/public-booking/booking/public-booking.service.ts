@@ -183,10 +183,15 @@ export class PublicBookingService {
         .where('resource.id = :id', { id: candidate.id })
         .getOne();
 
+      // The manager is not optional in practice: without it the re-check runs
+      // on a second pool connection while this transaction holds the first, so
+      // it cannot see this snapshot and, with pool max 10 and no connection
+      // timeout, wedges under concurrent load instead of erroring.
       const free = await this.availability.isSlotFree(
         candidate.id,
         startsAt,
         search,
+        manager,
       );
       if (free) return candidate;
     }
@@ -195,10 +200,14 @@ export class PublicBookingService {
   }
 
   /**
-   * The single local day the requested instant falls on, in the organization's
-   * timezone. Availability rules never span midnight — a rule whose end is
-   * before its start collapses to an empty interval — so one day is enough to
-   * re-derive the slot, and `notBefore: now` keeps a past instant unbookable.
+   * The local day the requested instant falls on, in the organization's
+   * timezone. `isSlotFree` narrows this range itself, so `from`/`to` describe
+   * the instant rather than bound the work; `notBefore: now` is what keeps a
+   * past instant unbookable.
+   *
+   * An unresolvable `organizations.timezone` falls back to the UTC date rather
+   * than throwing — the column is free text with no CHECK constraint, and a bad
+   * one must not turn a guest's booking into a 500.
    */
   private searchFor(
     organization: Organization,
@@ -208,12 +217,9 @@ export class PublicBookingService {
     const local = DateTime.fromMillis(startsAt, {
       zone: organization.timezone,
     });
-    if (!local.isValid) {
-      throw new Error(
-        `Invalid organization timezone: ${organization.timezone}`,
-      );
-    }
-    const date = local.toFormat('yyyy-MM-dd');
+    const date = local.isValid
+      ? local.toFormat('yyyy-MM-dd')
+      : new Date(startsAt).toISOString().slice(0, 10);
 
     return {
       service,
