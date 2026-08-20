@@ -104,9 +104,12 @@ export class AvailabilityService {
         status: ResourceStatus.ACTIVE,
       },
       // `id` is a tiebreaker, not cosmetic: two resources can share a name
-      // ("Studio", "Alex"), and this list feeds FOR UPDATE lock acquisition
-      // downstream. An unstable order between concurrent transactions on a
-      // tied name is a deadlock ingredient, so the order must be total.
+      // ("Studio", "Alex"). Without it, which one a guest prefers on retry
+      // is a coin flip, and the `resourceIds` arrays this list feeds into
+      // (mergeResourceSlots appends in resource iteration order) become
+      // nondeterministic across identical requests -- both matter for
+      // response stability. Lock ordering is handled separately, by the
+      // caller's own ORDER BY on the locking statement.
       order: { name: 'ASC', id: 'ASC' },
     });
   }
