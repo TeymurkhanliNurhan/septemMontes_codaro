@@ -96,7 +96,9 @@ interface FakeDb {
   organizations: Organization[];
   services: Service[];
   customers: Customer[];
-  /** Exactly what AvailabilityService.capableResources returns — unscoped. */
+  /** Raw join of `service_resources` + `resources` — like the table, NOT
+   *  pre-filtered. The double applies the organization filter exactly as the
+   *  real `capableResources` where clause does. */
   capable: Resource[];
   free: Set<string>;
   savedCustomers: Record<string, unknown>[];
@@ -107,6 +109,7 @@ interface FakeDb {
 
 interface CapableCall {
   serviceId: string;
+  organizationId: string;
   /** undefined when the caller forgot to hand over its transaction. */
   manager: EntityManager | undefined;
 }
@@ -276,10 +279,20 @@ function buildAvailability(
   const double = {
     capableResources(
       serviceId: string,
+      organizationId: string,
       manager?: EntityManager,
     ): Promise<Resource[]> {
-      capableCalls.push({ serviceId, manager });
-      return Promise.resolve(db.capable);
+      capableCalls.push({ serviceId, organizationId, manager });
+      // Mirrors the real where clause: the row set is the raw `service_resources`
+      // join, and rows whose organization does not match are filtered out by
+      // the query itself. The service under test must NOT filter again — if it
+      // did, nothing here would catch it, and if it stopped passing the org id
+      // at all, the "passes the organization id" test catches that.
+      return Promise.resolve(
+        db.capable.filter(
+          (resource) => resource.organizationId === organizationId,
+        ),
+      );
     },
     isSlotFree(
       resourceId: string,
@@ -558,6 +571,17 @@ describe('PublicBookingService.create', () => {
       await service.create('acme', buildDto());
 
       expect(capableCalls[0].manager).toBe(manager);
+    });
+
+    it('passes the organization resolved from the slug to capableResources', async () => {
+      const { service, manager, capableCalls } = buildHarness();
+
+      await service.create('acme', buildDto());
+
+      const [call] = capableCalls;
+      expect(call.serviceId).toBe('svc-1');
+      expect(call.organizationId).toBe('org-1');
+      expect(call.manager).toBe(manager);
     });
 
     it('re-checks the exact requested instant', async () => {
@@ -848,6 +872,9 @@ describe('PublicBookingService.create', () => {
     // The org-1 resource is load-bearing: without it the filtered set would be
     // empty and the "not bookable" guard would reject before the requested-id
     // check ran, so the test would pass without proving anything about it.
+    // The filter itself lives in capableResources' where clause; the double
+    // applies it, and "passes the organization resolved from the slug"
+    // proves the service supplies the right id.
     it('rejects a capable resource that belongs to another organization', async () => {
       const { service } = buildHarness({
         capable: [

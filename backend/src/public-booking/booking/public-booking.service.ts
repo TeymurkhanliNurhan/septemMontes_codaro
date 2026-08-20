@@ -34,10 +34,10 @@ const MINUTE_MS = 60_000;
  * Two rules govern everything here:
  *
  * - **Nothing is trusted but the slug.** The organization comes from the URL,
- *   and the service and resource are re-resolved inside it. `AvailabilityService`
- *   scopes neither `capableResources` nor `isSlotFree` by organization, so this
- *   service filters the candidate list itself. Without that, a caller could post
- *   another organization's `resourceId` and have a slot computed from it.
+ *   and the service is re-resolved inside it. `AvailabilityService` scopes
+ *   `capableResources` by organization (its `where` clause carries the org
+ *   id) but `isSlotFree` answers for a single resource id with no scope, so
+ *   this service still never lets a request-supplied id reach it unchecked.
  * - **Availability is re-derived under a row lock, on this transaction's own
  *   connection.** The slot list a browser is holding may be seconds stale, so
  *   `claimResource` locks the row and asks again — handing `isSlotFree` this
@@ -133,11 +133,12 @@ export class PublicBookingService {
   /**
    * Resources that may serve this booking, best first.
    *
-   * `capableResources` filters by service link and ACTIVE status only, so the
-   * organization filter here is the tenant boundary — a requested id that
-   * belongs to another organization must look exactly like one that does not
-   * exist. Under CUSTOMER_CHOICE a requested resource is the only candidate;
-   * under AUTO it is merely preferred, and the rest remain as fallbacks.
+   * `capableResources` is organization-scoped in its where clause, and this
+   * service passes the organization it resolved from the slug — a requested
+   * id that belongs to another organization is invisible to the query, so it
+   * must look exactly like one that does not exist. Under CUSTOMER_CHOICE a
+   * requested resource is the only candidate; under AUTO it is merely
+   * preferred, and the rest remain as fallbacks.
    */
   private async candidates(
     manager: EntityManager,
@@ -149,9 +150,11 @@ export class PublicBookingService {
     // two queries open a second pooled connection while this transaction holds
     // the first, which is enough to wedge a pool of ten under concurrent load
     // even though no row lock has been taken yet.
-    const capable = (
-      await this.availability.capableResources(service.id, manager)
-    ).filter((resource) => resource.organizationId === organizationId);
+    const capable = await this.availability.capableResources(
+      service.id,
+      organizationId,
+      manager,
+    );
 
     // No candidates at all is a configuration problem, not contention. Saying
     // "that time was just taken" would invite the guest to retry a service
@@ -278,6 +281,7 @@ export class PublicBookingService {
 
     return {
       service,
+      organizationId: organization.id,
       organizationTimezone: organization.timezone,
       from: date,
       to: date,

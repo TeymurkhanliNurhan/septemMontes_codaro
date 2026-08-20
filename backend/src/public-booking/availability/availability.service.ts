@@ -24,6 +24,7 @@ const MINUTE_MS = 60_000;
 
 export interface SlotSearch {
   service: Service;
+  organizationId: string;
   organizationTimezone: string;
   from: string;
   to: string;
@@ -78,17 +79,29 @@ export class AvailabilityService {
   ) {}
 
   /**
-   * ACTIVE resources capable of performing this service.
+   * ACTIVE resources capable of performing this service, scoped to
+   * `organizationId`.
    *
-   * Same reasoning as `isSlotFree`: a caller running this inside a
-   * transaction must pass its `manager` so both queries land on the locking
-   * connection, not a second pooled one — otherwise, holding a transaction
-   * connection while this opens another is enough to wedge the pool (max 10,
-   * no connection timeout) under concurrent load, even before any row lock
-   * is taken.
+   * `organizationId` is required, not optional, deliberately: nothing ties
+   * a `service_resources` row's resource to the same organization as its
+   * service (no DB constraint, no validation in
+   * `ServiceResourceService.create`), so an admin in one organization can
+   * link their service to another organization's resource. Filtering here
+   * in JS after an unscoped query would over-fetch the other organization's
+   * row and rely on every caller remembering to discard it; filtering is
+   * pushed into the `where` clause instead, and the compiler now refuses to
+   * compile any call site that forgets to supply an organization id at all.
+   *
+   * Same reasoning as `isSlotFree` for `manager`: a caller running this
+   * inside a transaction must pass its `manager` so both queries land on
+   * the locking connection, not a second pooled one — otherwise, holding a
+   * transaction connection while this opens another is enough to wedge the
+   * pool (max 10, no connection timeout) under concurrent load, even before
+   * any row lock is taken.
    */
   async capableResources(
     serviceId: string,
+    organizationId: string,
     manager?: EntityManager,
   ): Promise<Resource[]> {
     const serviceResources =
@@ -101,6 +114,7 @@ export class AvailabilityService {
     return resources.find({
       where: {
         id: In(links.map((link) => link.resourceId)),
+        organizationId,
         status: ResourceStatus.ACTIVE,
       },
       // `id` is a tiebreaker, not cosmetic: two resources can share a name
@@ -205,7 +219,10 @@ export class AvailabilityService {
   // parameter here with no caller to pass one would be dead code that
   // implies otherwise.
   private async resolveResources(search: SlotSearch): Promise<Resource[]> {
-    const capable = await this.capableResources(search.service.id);
+    const capable = await this.capableResources(
+      search.service.id,
+      search.organizationId,
+    );
     if (!search.resourceId) return capable;
     return capable.filter((resource) => resource.id === search.resourceId);
   }
