@@ -20,7 +20,6 @@
 		currency: 'PLN',
 		maximumFractionDigits: 0
 	});
-	const slug = $derived(page.params.slug ?? 'septem');
 </script>
 
 <div class="mx-auto max-w-3xl">
@@ -102,10 +101,6 @@
 				</p>
 			</div>
 		{/if}
-
-		<div class="mt-10 flex gap-4">
-			<a href={resolve(`/${slug}/director`)} class="btn btn-ghost btn-sm">Director's console</a>
-		</div>
 	{:else}
 		<p class="eyebrow settle">Held</p>
 		<h1 class="display settle mt-2 text-3xl">The arrangement went through.</h1>

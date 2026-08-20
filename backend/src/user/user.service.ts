@@ -11,7 +11,23 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entity';
 import { UserAccessPolicy } from './user-access.policy';
 
-export const DEFAULT_ORG_SLUG = 'septem_montes';
+/**
+ * The organization every staff login and registration resolves to.
+ *
+ * A function rather than a constant because a constant is evaluated when this
+ * module is first imported, which happens before Nest has read `.env` — the
+ * override would silently never apply. Read at call time it is always current.
+ *
+ * Overridable at all because the slug has already drifted once: the migration
+ * seeds `septem_montes`, while an organization created by hand through
+ * `scripts/set-password.ts --create` carries whatever slug was typed at the
+ * time. When the two disagree every login answers 404, which is a confusing
+ * way to be told that the account is fine and the lookup is not. Set
+ * `DEFAULT_ORG_SLUG` to whatever `select slug from organizations` reports.
+ */
+export function defaultOrgSlug(): string {
+  return process.env.DEFAULT_ORG_SLUG ?? 'septem_montes';
+}
 
 @Injectable()
 export class UserService {

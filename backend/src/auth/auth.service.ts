@@ -4,7 +4,7 @@ import { AuthUser } from '../common/types/authenticated-request';
 import { OrganizationService } from '../organization/organization.service';
 import { UserResponseDto } from '../user/dto/user-response.dto';
 import { User } from '../user/entities/user.entity';
-import { DEFAULT_ORG_SLUG, UserService } from '../user/user.service';
+import { defaultOrgSlug, UserService } from '../user/user.service';
 import { AuthUserDto } from './dto/auth-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -38,11 +38,11 @@ export class AuthService {
   async login(dto: LoginDto, client: ClientInfo): Promise<LoginResult> {
     this.logger.debug(`Login attempt for ${dto.email}`);
 
-    const organization = await this.organizations.findBySlug(DEFAULT_ORG_SLUG);
+    const organization = await this.organizations.findBySlug(defaultOrgSlug());
     if (!organization) {
-      this.logger.error(`Default organization '${DEFAULT_ORG_SLUG}' is missing`);
+      this.logger.error(`Default organization '${defaultOrgSlug()}' is missing`);
       throw new NotFoundException(
-        `Default organization '${DEFAULT_ORG_SLUG}' not found`,
+        `Default organization '${defaultOrgSlug()}' not found`,
       );
     }
 
@@ -75,14 +75,14 @@ export class AuthService {
 
   async registerUser(dto: RegisterUserDto): Promise<UserResponseDto> {
     this.logger.log(
-      `Registering user ${dto.email} with role ${dto.role} into ${DEFAULT_ORG_SLUG}`,
+      `Registering user ${dto.email} with role ${dto.role} into ${defaultOrgSlug()}`,
     );
 
-    const organization = await this.organizations.findBySlug(DEFAULT_ORG_SLUG);
+    const organization = await this.organizations.findBySlug(defaultOrgSlug());
     if (!organization) {
-      this.logger.error(`Default organization '${DEFAULT_ORG_SLUG}' is missing`);
+      this.logger.error(`Default organization '${defaultOrgSlug()}' is missing`);
       throw new NotFoundException(
-        `Default organization '${DEFAULT_ORG_SLUG}' not found`,
+        `Default organization '${defaultOrgSlug()}' not found`,
       );
     }
 

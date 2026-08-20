@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
+	import { logout } from '$lib/api/auth';
 	import { loadBoard, type BoardEntry } from '$lib/funeral/case-store';
 	import { STORAGE_LIMIT_DAYS } from '$lib/funeral/constraints';
 	import { formatDateInZone, formatInZone } from '$lib/time';
@@ -7,6 +9,20 @@
 
 	let { data }: { data: PageData } = $props();
 	const zone = $derived(data.organization.timezone);
+
+	let signingOut = $state(false);
+
+	async function signOut(): Promise<void> {
+		if (signingOut) return;
+		signingOut = true;
+		try {
+			await logout(fetch);
+		} finally {
+			// Whether or not the API acknowledged it, leave the console: a director
+			// stepping away from a shared screen must not be kept on it by an error.
+			await goto(resolve(`/${data.organization.slug}/director/login`), { invalidateAll: true });
+		}
+	}
 
 	/**
 	 * Cases the home is carrying today. Seeded ones stand for the work already
@@ -100,13 +116,22 @@
 	const provisional = $derived(board.filter((entry) => entry.provisional));
 </script>
 
-<div class="hairline pb-5">
-	<p class="eyebrow">Today</p>
-	<h1 class="display mt-1 text-3xl">{board.length} in our care</h1>
-	<p class="mt-2 text-sm opacity-60">
-		{awaiting.length} waiting on a third party · {provisional.length} provisional on a coroner · all times
-		{zone}
-	</p>
+<div class="hairline flex flex-wrap items-end justify-between gap-4 pb-5">
+	<div>
+		<p class="eyebrow">Today</p>
+		<h1 class="display mt-1 text-3xl">{board.length} in our care</h1>
+		<p class="mt-2 text-sm opacity-60">
+			{awaiting.length} waiting on a third party · {provisional.length} provisional on a coroner · all
+			times {zone}
+		</p>
+	</div>
+	<div class="text-right text-xs opacity-55">
+		<p>{data.user.name || data.user.email}</p>
+		<p class="opacity-70">{data.user.role}</p>
+		<button class="mt-1 link link-hover" onclick={signOut} disabled={signingOut}>
+			{signingOut ? 'Signing out…' : 'Sign out'}
+		</button>
+	</div>
 </div>
 
 <section class="mt-10">
@@ -235,4 +260,7 @@
 	<a href={resolve(`/${data.organization.slug}`)} class="btn btn-ghost btn-sm">
 		Begin an arrangement
 	</a>
+	<p class="mt-4 text-xs opacity-40">
+		Not linked from anywhere a family can reach, and not theirs to see.
+	</p>
 </div>
