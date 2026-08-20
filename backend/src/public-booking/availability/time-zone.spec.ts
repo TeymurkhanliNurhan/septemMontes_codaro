@@ -1,4 +1,9 @@
-import { eachLocalDate, localDayOfWeek, resolveLocal } from './time-zone';
+import {
+  eachLocalDate,
+  localDayBounds,
+  localDayOfWeek,
+  resolveLocal,
+} from './time-zone';
 
 describe('localDayOfWeek', () => {
   it('returns 0 for Sunday', () => {
@@ -85,5 +90,57 @@ describe('resolveLocal', () => {
     expect(() =>
       resolveLocal('2026-08-24', '09:00:00', 'Mars/Olympus'),
     ).toThrow(/Mars\/Olympus/);
+  });
+
+  it('picks the earlier occurrence in a southern-hemisphere zone', () => {
+    const millis = resolveLocal('2026-04-05', '02:30:00', 'Australia/Sydney');
+    expect(new Date(millis).toISOString()).toBe('2026-04-04T15:30:00.000Z');
+  });
+
+  it('handles a 30-minute DST shift', () => {
+    const earliest = resolveLocal(
+      '2026-04-05',
+      '01:45:00',
+      'Australia/Lord_Howe',
+    );
+    const latest = resolveLocal(
+      '2026-04-05',
+      '01:45:00',
+      'Australia/Lord_Howe',
+      'latest',
+    );
+    expect(new Date(earliest).toISOString()).toBe('2026-04-04T14:45:00.000Z');
+    expect(new Date(latest).toISOString()).toBe('2026-04-04T15:15:00.000Z');
+  });
+
+  it('rejects a zone string that resolves to the server timezone', () => {
+    expect(() => resolveLocal('2026-08-24', '09:00:00', 'local')).toThrow(
+      /local/,
+    );
+    expect(() => resolveLocal('2026-08-24', '09:00:00', 'system')).toThrow(
+      /system/,
+    );
+  });
+});
+
+describe('localDayBounds', () => {
+  it('spans 24 hours on an ordinary day', () => {
+    const { start, end } = localDayBounds('2026-08-24', 'Europe/Berlin');
+    expect(end - start).toBe(86_400_000);
+  });
+
+  it('spans 23 hours on a spring-forward day', () => {
+    const { start, end } = localDayBounds('2026-03-29', 'Europe/Berlin');
+    expect(end - start).toBe(23 * 3_600_000);
+  });
+
+  it('spans 25 hours on a fall-back day', () => {
+    const { start, end } = localDayBounds('2026-10-25', 'Europe/Berlin');
+    expect(end - start).toBe(25 * 3_600_000);
+  });
+
+  it('crosses a month boundary for the end bound', () => {
+    const { end } = localDayBounds('2026-08-31', 'UTC');
+    expect(new Date(end).toISOString()).toBe('2026-09-01T00:00:00.000Z');
   });
 });
