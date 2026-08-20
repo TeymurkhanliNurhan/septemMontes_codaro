@@ -13,8 +13,13 @@ export class ServiceService {
     private readonly repo: Repository<Service>,
   ) {}
 
-  async findByOrganization(organizationId: string): Promise<ServiceResponseDto[]> {
-    const items = await this.repo.find({ where: { organizationId }, order: { createdAt: 'DESC' } });
+  async findByOrganization(
+    organizationId: string,
+  ): Promise<ServiceResponseDto[]> {
+    const items = await this.repo.find({
+      where: { organizationId },
+      order: { createdAt: 'DESC' },
+    });
     return items.map((item) => this.toDto(item));
   }
 
@@ -24,7 +29,11 @@ export class ServiceService {
     return this.toDto(item);
   }
 
-  async create(dto: CreateServiceDto, organizationId?: string, createdByUserId?: string): Promise<ServiceResponseDto> {
+  async create(
+    dto: CreateServiceDto,
+    organizationId?: string,
+    createdByUserId?: string,
+  ): Promise<ServiceResponseDto> {
     const entity = this.repo.create({
       ...dto,
       organizationId: dto.organizationId ?? organizationId,
@@ -36,7 +45,8 @@ export class ServiceService {
 
   async update(dto: UpdateServiceDto): Promise<ServiceResponseDto> {
     const entity = await this.repo.findOne({ where: { id: dto.id } });
-    if (!entity) throw new NotFoundException('Service ' + dto.id + ' not found');
+    if (!entity)
+      throw new NotFoundException('Service ' + dto.id + ' not found');
     Object.assign(entity, dto);
     const saved = await this.repo.save(entity);
     return this.toDto(saved);
@@ -44,10 +54,11 @@ export class ServiceService {
 
   async remove(id: string): Promise<void> {
     const result = await this.repo.delete(id);
-    if (!result.affected) throw new NotFoundException('Service ' + id + ' not found');
+    if (!result.affected)
+      throw new NotFoundException('Service ' + id + ' not found');
   }
 
   private toDto(entity: Service): ServiceResponseDto {
-    return entity as unknown as ServiceResponseDto;
+    return entity;
   }
 }

@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {  IsObject, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
-
+import { IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateBookingParticipantDto {
   @ApiProperty()

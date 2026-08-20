@@ -11,7 +11,9 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  @ApiOperation({ summary: 'Login with organization email (dev stub — no password in ERD)' })
+  @ApiOperation({
+    summary: 'Login with organization email (dev stub — no password in ERD)',
+  })
   @ApiResponse({ status: 200, type: AuthResponseDto })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);

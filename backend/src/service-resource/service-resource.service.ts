@@ -12,12 +12,16 @@ export class ServiceResourceService {
     private readonly repo: Repository<ServiceResource>,
   ) {}
 
-  async findAll(filter?: Partial<CreateServiceResourceDto>): Promise<ServiceResourceResponseDto[]> {
+  async findAll(
+    filter?: Partial<CreateServiceResourceDto>,
+  ): Promise<ServiceResourceResponseDto[]> {
     const items = await this.repo.find({ where: filter as object });
-    return items as ServiceResourceResponseDto[];
+    return items;
   }
 
-  async create(dto: CreateServiceResourceDto): Promise<ServiceResourceResponseDto> {
+  async create(
+    dto: CreateServiceResourceDto,
+  ): Promise<ServiceResourceResponseDto> {
     const entity = this.repo.create(dto);
     return this.repo.save(entity);
   }

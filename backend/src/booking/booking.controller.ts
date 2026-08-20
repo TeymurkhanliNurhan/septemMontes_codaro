@@ -1,9 +1,26 @@
-import { Body, Controller, Delete, Get, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
@@ -21,8 +38,8 @@ export class BookingController {
   @ApiOperation({ summary: 'List bookings' })
   @ApiQuery({ name: 'id', required: false })
   @ApiResponse({ status: 200, type: [BookingResponseDto] })
-  findAll(@Req() req: any, @Query('id') id?: string) {
-    const organizationId = (req.user as { organizationId: string }).organizationId;
+  findAll(@Req() req: AuthenticatedRequest, @Query('id') id?: string) {
+    const organizationId = req.user.organizationId;
     if (id) return this.bookingService.findOne(id);
     return this.bookingService.findByOrganization(organizationId);
   }
@@ -30,10 +47,9 @@ export class BookingController {
   @Post()
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @ApiOperation({ summary: 'Create booking' })
-  create(@Req() req: any, @Body() dto: CreateBookingDto) {
-    const organizationId = (req.user as { organizationId: string }).organizationId;
-    const user = req.user as { userId?: string; id?: string };
-    const userId = user.userId ?? user.id;
+  create(@Req() req: AuthenticatedRequest, @Body() dto: CreateBookingDto) {
+    const organizationId = req.user.organizationId;
+    const userId = req.user.userId;
     return this.bookingService.create(dto, organizationId, userId);
   }
 

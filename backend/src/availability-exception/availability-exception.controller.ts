@@ -1,5 +1,20 @@
-import { Body, Controller, Delete, Get, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -14,7 +29,9 @@ import { AvailabilityExceptionResponseDto } from './dto/exception-response.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT-auth')
 export class AvailabilityExceptionController {
-  constructor(private readonly availabilityExceptionService: AvailabilityExceptionService) {}
+  constructor(
+    private readonly availabilityExceptionService: AvailabilityExceptionService,
+  ) {}
 
   @Get()
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
@@ -22,17 +39,17 @@ export class AvailabilityExceptionController {
   @ApiQuery({ name: 'id', required: false })
   @ApiQuery({ name: 'resourceId', required: false })
   @ApiResponse({ status: 200, type: [AvailabilityExceptionResponseDto] })
-  findAll(@Req() req: any, @Query('id') id?: string) {
+  findAll(@Query('id') id?: string, @Query('resourceId') resourceId?: string) {
     if (id) return this.availabilityExceptionService.findOne(id);
-    const filterValue = req.query['resourceId'] as string | undefined;
-    if (filterValue) return this.availabilityExceptionService.findByFilter(filterValue);
+    if (resourceId)
+      return this.availabilityExceptionService.findByFilter(resourceId);
     return this.availabilityExceptionService.findAll();
   }
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @ApiOperation({ summary: 'Create availability-exception' })
-  create(@Req() req: any, @Body() dto: CreateAvailabilityExceptionDto) {
+  create(@Body() dto: CreateAvailabilityExceptionDto) {
     return this.availabilityExceptionService.create(dto);
   }
 

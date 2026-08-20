@@ -14,9 +14,14 @@ describe('AppController', () => {
     appController = app.get<AppController>(AppController);
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+  describe('health', () => {
+    it('should report status ok', () => {
+      expect(appController.getHealth().status).toBe('ok');
+    });
+
+    it('should report an ISO timestamp', () => {
+      const { timestamp } = appController.getHealth();
+      expect(new Date(timestamp).toISOString()).toBe(timestamp);
     });
   });
 });

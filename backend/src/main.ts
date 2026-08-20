@@ -17,7 +17,9 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Septem Montes Booking API')
-    .setDescription('REST API for organizations, resources, availability, and bookings')
+    .setDescription(
+      'REST API for organizations, resources, availability, and bookings',
+    )
     .setVersion('1.0')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
@@ -30,4 +32,4 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3005, '0.0.0.0');
 }
-bootstrap();
+void bootstrap();

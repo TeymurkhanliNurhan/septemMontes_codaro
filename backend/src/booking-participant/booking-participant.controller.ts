@@ -1,5 +1,20 @@
-import { Body, Controller, Delete, Get, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -14,7 +29,9 @@ import { BookingParticipantResponseDto } from './dto/participant-response.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT-auth')
 export class BookingParticipantController {
-  constructor(private readonly bookingParticipantService: BookingParticipantService) {}
+  constructor(
+    private readonly bookingParticipantService: BookingParticipantService,
+  ) {}
 
   @Get()
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
@@ -22,17 +39,17 @@ export class BookingParticipantController {
   @ApiQuery({ name: 'id', required: false })
   @ApiQuery({ name: 'bookingId', required: false })
   @ApiResponse({ status: 200, type: [BookingParticipantResponseDto] })
-  findAll(@Req() req: any, @Query('id') id?: string) {
+  findAll(@Query('id') id?: string, @Query('bookingId') bookingId?: string) {
     if (id) return this.bookingParticipantService.findOne(id);
-    const filterValue = req.query['bookingId'] as string | undefined;
-    if (filterValue) return this.bookingParticipantService.findByFilter(filterValue);
+    if (bookingId)
+      return this.bookingParticipantService.findByFilter(bookingId);
     return this.bookingParticipantService.findAll();
   }
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @ApiOperation({ summary: 'Create booking-participant' })
-  create(@Req() req: any, @Body() dto: CreateBookingParticipantDto) {
+  create(@Body() dto: CreateBookingParticipantDto) {
     return this.bookingParticipantService.create(dto);
   }
 

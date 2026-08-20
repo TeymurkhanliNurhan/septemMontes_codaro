@@ -36,7 +36,12 @@ export class Resource {
   @Column({ type: 'varchar', length: 255, name: 'name' })
   name: string;
 
-  @Column({ type: 'varchar', length: 100, name: 'resource_type', nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 100,
+    name: 'resource_type',
+    nullable: true,
+  })
   resourceType: string | null;
 
   @Column({

@@ -13,8 +13,13 @@ export class BookingParticipantService {
     private readonly repo: Repository<BookingParticipant>,
   ) {}
 
-  async findByFilter(bookingId: string): Promise<BookingParticipantResponseDto[]> {
-    const items = await this.repo.find({ where: { bookingId }, order: { createdAt: 'DESC' } });
+  async findByFilter(
+    bookingId: string,
+  ): Promise<BookingParticipantResponseDto[]> {
+    const items = await this.repo.find({
+      where: { bookingId },
+      order: { createdAt: 'DESC' },
+    });
     return items.map((item) => this.toDto(item));
   }
 
@@ -25,19 +30,27 @@ export class BookingParticipantService {
 
   async findOne(id: string): Promise<BookingParticipantResponseDto> {
     const item = await this.repo.findOne({ where: { id } });
-    if (!item) throw new NotFoundException('BookingParticipant ' + id + ' not found');
+    if (!item)
+      throw new NotFoundException('BookingParticipant ' + id + ' not found');
     return this.toDto(item);
   }
 
-  async create(dto: CreateBookingParticipantDto): Promise<BookingParticipantResponseDto> {
+  async create(
+    dto: CreateBookingParticipantDto,
+  ): Promise<BookingParticipantResponseDto> {
     const entity = this.repo.create(dto as Partial<BookingParticipant>);
     const saved = await this.repo.save(entity);
     return this.toDto(saved);
   }
 
-  async update(dto: UpdateBookingParticipantDto): Promise<BookingParticipantResponseDto> {
+  async update(
+    dto: UpdateBookingParticipantDto,
+  ): Promise<BookingParticipantResponseDto> {
     const entity = await this.repo.findOne({ where: { id: dto.id } });
-    if (!entity) throw new NotFoundException('BookingParticipant ' + dto.id + ' not found');
+    if (!entity)
+      throw new NotFoundException(
+        'BookingParticipant ' + dto.id + ' not found',
+      );
     Object.assign(entity, dto);
     const saved = await this.repo.save(entity);
     return this.toDto(saved);
@@ -45,10 +58,11 @@ export class BookingParticipantService {
 
   async remove(id: string): Promise<void> {
     const result = await this.repo.delete(id);
-    if (!result.affected) throw new NotFoundException('BookingParticipant ' + id + ' not found');
+    if (!result.affected)
+      throw new NotFoundException('BookingParticipant ' + id + ' not found');
   }
 
   private toDto(entity: BookingParticipant): BookingParticipantResponseDto {
-    return entity as unknown as BookingParticipantResponseDto;
+    return entity;
   }
 }

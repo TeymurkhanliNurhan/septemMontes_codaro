@@ -1,5 +1,20 @@
-import { Body, Controller, Delete, Get, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -22,17 +37,16 @@ export class BookingEventController {
   @ApiQuery({ name: 'id', required: false })
   @ApiQuery({ name: 'bookingId', required: false })
   @ApiResponse({ status: 200, type: [BookingEventResponseDto] })
-  findAll(@Req() req: any, @Query('id') id?: string) {
+  findAll(@Query('id') id?: string, @Query('bookingId') bookingId?: string) {
     if (id) return this.bookingEventService.findOne(id);
-    const filterValue = req.query['bookingId'] as string | undefined;
-    if (filterValue) return this.bookingEventService.findByFilter(filterValue);
+    if (bookingId) return this.bookingEventService.findByFilter(bookingId);
     return this.bookingEventService.findAll();
   }
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @ApiOperation({ summary: 'Create booking-event' })
-  create(@Req() req: any, @Body() dto: CreateBookingEventDto) {
+  create(@Body() dto: CreateBookingEventDto) {
     return this.bookingEventService.create(dto);
   }
 

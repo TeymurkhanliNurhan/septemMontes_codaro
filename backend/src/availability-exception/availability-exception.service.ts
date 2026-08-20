@@ -13,8 +13,13 @@ export class AvailabilityExceptionService {
     private readonly repo: Repository<AvailabilityException>,
   ) {}
 
-  async findByFilter(resourceId: string): Promise<AvailabilityExceptionResponseDto[]> {
-    const items = await this.repo.find({ where: { resourceId }, order: { createdAt: 'DESC' } });
+  async findByFilter(
+    resourceId: string,
+  ): Promise<AvailabilityExceptionResponseDto[]> {
+    const items = await this.repo.find({
+      where: { resourceId },
+      order: { createdAt: 'DESC' },
+    });
     return items.map((item) => this.toDto(item));
   }
 
@@ -25,19 +30,27 @@ export class AvailabilityExceptionService {
 
   async findOne(id: string): Promise<AvailabilityExceptionResponseDto> {
     const item = await this.repo.findOne({ where: { id } });
-    if (!item) throw new NotFoundException('AvailabilityException ' + id + ' not found');
+    if (!item)
+      throw new NotFoundException('AvailabilityException ' + id + ' not found');
     return this.toDto(item);
   }
 
-  async create(dto: CreateAvailabilityExceptionDto): Promise<AvailabilityExceptionResponseDto> {
+  async create(
+    dto: CreateAvailabilityExceptionDto,
+  ): Promise<AvailabilityExceptionResponseDto> {
     const entity = this.repo.create(dto as Partial<AvailabilityException>);
     const saved = await this.repo.save(entity);
     return this.toDto(saved);
   }
 
-  async update(dto: UpdateAvailabilityExceptionDto): Promise<AvailabilityExceptionResponseDto> {
+  async update(
+    dto: UpdateAvailabilityExceptionDto,
+  ): Promise<AvailabilityExceptionResponseDto> {
     const entity = await this.repo.findOne({ where: { id: dto.id } });
-    if (!entity) throw new NotFoundException('AvailabilityException ' + dto.id + ' not found');
+    if (!entity)
+      throw new NotFoundException(
+        'AvailabilityException ' + dto.id + ' not found',
+      );
     Object.assign(entity, dto);
     const saved = await this.repo.save(entity);
     return this.toDto(saved);
@@ -45,10 +58,13 @@ export class AvailabilityExceptionService {
 
   async remove(id: string): Promise<void> {
     const result = await this.repo.delete(id);
-    if (!result.affected) throw new NotFoundException('AvailabilityException ' + id + ' not found');
+    if (!result.affected)
+      throw new NotFoundException('AvailabilityException ' + id + ' not found');
   }
 
-  private toDto(entity: AvailabilityException): AvailabilityExceptionResponseDto {
-    return entity as unknown as AvailabilityExceptionResponseDto;
+  private toDto(
+    entity: AvailabilityException,
+  ): AvailabilityExceptionResponseDto {
+    return entity;
   }
 }

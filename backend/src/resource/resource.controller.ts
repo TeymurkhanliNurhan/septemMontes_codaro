@@ -1,9 +1,26 @@
-import { Body, Controller, Delete, Get, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
 import { ResourceService } from './resource.service';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
@@ -21,8 +38,8 @@ export class ResourceController {
   @ApiOperation({ summary: 'List resources' })
   @ApiQuery({ name: 'id', required: false })
   @ApiResponse({ status: 200, type: [ResourceResponseDto] })
-  findAll(@Req() req: any, @Query('id') id?: string) {
-    const organizationId = (req.user as { organizationId: string }).organizationId;
+  findAll(@Req() req: AuthenticatedRequest, @Query('id') id?: string) {
+    const organizationId = req.user.organizationId;
     if (id) return this.resourceService.findOne(id);
     return this.resourceService.findByOrganization(organizationId);
   }
@@ -30,8 +47,8 @@ export class ResourceController {
   @Post()
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @ApiOperation({ summary: 'Create resource' })
-  create(@Req() req: any, @Body() dto: CreateResourceDto) {
-    const organizationId = (req.user as { organizationId: string }).organizationId;
+  create(@Req() req: AuthenticatedRequest, @Body() dto: CreateResourceDto) {
+    const organizationId = req.user.organizationId;
     return this.resourceService.create(dto, organizationId);
   }
 
