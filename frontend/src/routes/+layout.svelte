@@ -14,9 +14,6 @@
 		<div class="navbar-start">
 			<a href={resolve('/')} class="btn btn-ghost text-xl">Bookings</a>
 		</div>
-		<div class="navbar-end">
-			<span class="badge badge-outline">Guest booking</span>
-		</div>
 	</header>
 
 	<main class="flex-1">{@render children()}</main>

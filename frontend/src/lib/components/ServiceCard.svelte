@@ -5,7 +5,10 @@
 	let { service, slug }: { service: PublicService; slug: string } = $props();
 </script>
 
-<div class="card bg-base-100 shadow-md">
+<a
+	href={resolve(`/${slug}/${service.id}`)}
+	class="card bg-base-100 shadow-md transition-shadow hover:shadow-lg"
+>
 	<div class="card-body">
 		<h2 class="card-title">{service.name}</h2>
 		{#if service.description}
@@ -13,7 +16,7 @@
 		{/if}
 		<div class="card-actions items-center justify-between">
 			<span class="badge badge-outline">{service.durationMinutes} min</span>
-			<a href={resolve(`/${slug}/${service.id}`)} class="btn btn-primary btn-sm"> Book </a>
+			<span class="text-sm font-semibold text-primary">Book →</span>
 		</div>
 	</div>
-</div>
+</a>

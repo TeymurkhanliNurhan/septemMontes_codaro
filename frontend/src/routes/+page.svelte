@@ -32,8 +32,8 @@
 				</label>
 				<button type="submit" class="btn join-item btn-primary">Go</button>
 			</form>
-			<p class="pt-6 text-sm opacity-60">
-				Try the demo: <a href={resolve('/demo')} class="link link-primary">/demo</a>
+			<p class="pt-6">
+				<a href={resolve('/demo')} class="btn btn-outline btn-sm"> View the demo </a>
 			</p>
 		</div>
 	</div>

@@ -6,7 +6,8 @@
 	const { services } = $derived(data);
 </script>
 
-<h1 class="mb-6 text-2xl font-bold">Services</h1>
+<h1 class="mb-1 text-2xl font-bold">{data.organization.name}</h1>
+<p class="mb-6 text-sm opacity-70">Choose a service to book</p>
 
 {#if services.length === 0}
 	<div class="rounded-box bg-base-200 p-8 text-center">

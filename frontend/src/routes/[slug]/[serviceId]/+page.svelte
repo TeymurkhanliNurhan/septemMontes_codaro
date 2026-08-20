@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import DatePager from '$lib/components/DatePager.svelte';
 	import BookingForm from '$lib/components/BookingForm.svelte';
 	import ResourcePicker from '$lib/components/ResourcePicker.svelte';
@@ -94,54 +95,69 @@
 		selectedSlot = undefined;
 		await reloadSlots(weekStart, selectedResourceId);
 	}
+
+	/**
+	 * On small screens the form mounts below the grid; bring it into view when
+	 * it appears. On wide screens it sits beside the grid already, so do
+	 * nothing (and `nearest` never yanks a page that already shows it).
+	 */
+	function scrollIntoView(node: HTMLElement): void {
+		if (window.matchMedia('(min-width: 1024px)').matches) return;
+		node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+	}
 </script>
 
-<h1 class="mb-2 text-2xl font-bold">{service.name}</h1>
-<p class="mb-1 text-sm opacity-70">
-	{service.durationMinutes} minutes
-	{#if isCustomerChoice}
-		· you choose who takes it{/if}
+<a href={resolve(`/${slug}`)} class="mb-3 inline-block link text-sm link-hover opacity-70">
+	‹ {data.organization.name}
+</a>
+<h1 class="mb-1 text-2xl font-bold">{service.name}</h1>
+<p class="mb-6 text-sm opacity-70">
+	{service.durationMinutes} minutes · All times in {zone}
 </p>
-<p class="mb-6 text-sm font-semibold">All times in {zone}</p>
 
-{#if isCustomerChoice && data.resources !== null}
-	<ResourcePicker
-		resources={data.resources}
-		selected={selectedResourceId}
-		onselect={(resourceId) => (selectedResourceId = resourceId)}
-	/>
-{/if}
+<div class="grid gap-8 lg:grid-cols-3">
+	<div class={selectedSlot ? '' : 'lg:col-span-3'}>
+		{#if isCustomerChoice && data.resources !== null}
+			<ResourcePicker
+				resources={data.resources}
+				selected={selectedResourceId}
+				onselect={(resourceId) => (selectedResourceId = resourceId)}
+			/>
+		{/if}
 
-<DatePager {weekStart} {today} onprev={() => moveWeek(-7)} onnext={() => moveWeek(7)} />
+		<DatePager {weekStart} {today} onprev={() => moveWeek(-7)} onnext={() => moveWeek(7)} />
 
-{#if loading}
-	<div class="my-10 flex justify-center">
-		<span class="loading loading-lg loading-spinner"></span>
+		{#if loading}
+			<div class="my-10 flex justify-center">
+				<span class="loading loading-lg loading-spinner"></span>
+			</div>
+		{:else if slotsError}
+			<div role="alert" class="my-6 alert alert-error">
+				<span>{slotsError}</span>
+			</div>
+		{:else if slots.length === 0}
+			<div class="my-6 rounded-box bg-base-200 p-8 text-center">
+				<p class="text-lg">Nothing open this week.</p>
+				<p class="mt-1 text-sm opacity-70">
+					No bookable times between {weekStart} and the end of the week.
+				</p>
+				<button class="btn mt-4 btn-primary" onclick={() => moveWeek(7)}> Try next week </button>
+			</div>
+		{:else}
+			<SlotGrid {slots} {weekStart} {zone} selected={selectedSlot} onselect={pickSlot} />
+		{/if}
 	</div>
-{:else if slotsError}
-	<div role="alert" class="my-6 alert alert-error">
-		<span>{slotsError}</span>
-	</div>
-{:else if slots.length === 0}
-	<div class="my-6 rounded-box bg-base-200 p-8 text-center">
-		<p class="text-lg">Nothing open this week.</p>
-		<p class="mt-1 text-sm opacity-70">
-			No bookable times between {weekStart} and the end of the week.
-		</p>
-		<button class="btn mt-4 btn-primary" onclick={() => moveWeek(7)}> Try next week </button>
-	</div>
-{:else}
-	<SlotGrid {slots} {weekStart} {zone} selected={selectedSlot} onselect={pickSlot} />
-{/if}
 
-{#if selectedSlot}
-	<div class="divider"></div>
-	<BookingForm
-		{slug}
-		serviceId={service.id}
-		slot={selectedSlot}
-		resourceId={selectedResourceId}
-		{zone}
-		onconflict={handleConflict}
-	/>
-{/if}
+	{#if selectedSlot}
+		<div class="self-start lg:sticky lg:top-6" use:scrollIntoView>
+			<BookingForm
+				{slug}
+				serviceId={service.id}
+				slot={selectedSlot}
+				resourceId={selectedResourceId}
+				{zone}
+				onconflict={handleConflict}
+			/>
+		</div>
+	{/if}
+</div>
