@@ -47,14 +47,14 @@ Open `http://localhost:5173` and begin an arrangement. `VITE_API_URL` (see
 
 ## Routes
 
-| Route                    | Page                                                           |
-| ------------------------ | -------------------------------------------------------------- |
-| `/`                      | What the home is for                                           |
-| `/{slug}`                | Intake — the deceased, the tradition, the coroner, the parties |
-| `/{slug}/arrangements`   | The window, its constraints, and the plans that fit inside it  |
-| `/{slug}/confirmed`      | The held arrangement                                           |
-| `/{slug}/director`       | The home's own board: cold storage, cases, third-party slots   |
-| `/{slug}/director/login` | Staff sign-in                                                  |
+| Route                    | Page                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `/`                      | What the home is for                                                                                                |
+| `/{slug}`                | Intake — the deceased, the tradition, the coroner, the parties                                                      |
+| `/{slug}/arrangements`   | The window, its constraints, and the plans that fit inside it                                                       |
+| `/{slug}/confirmed`      | The held arrangement                                                                                                |
+| `/{slug}/director`       | The home's own board: cold storage, cases it can amend, third-party slots, and the steps and resources it publishes |
+| `/{slug}/director/login` | Staff sign-in                                                                                                       |
 
 The only data the app touches comes from the five unauthenticated routes under
 `/public` — the OpenAPI schema for them is generated into
@@ -101,6 +101,4 @@ npm run lint             # prettier + eslint
 
 - **Admin routes must set `ssr = false`.** The staff API is cookie-based, and
   the admin panel will read its own session state, which does not belong in
-  SSR data.
-- **The API client will need `credentials: 'include'`** for cookie auth. It is
-  deliberately absent today — every route the consumer app calls is public.
+  SSR data. The director console already does this.

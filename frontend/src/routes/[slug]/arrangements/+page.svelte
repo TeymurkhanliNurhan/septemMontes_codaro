@@ -5,6 +5,7 @@
 	import PlanCard from '$lib/components/funeral/PlanCard.svelte';
 	import { api, ApiError } from '$lib/api/client';
 	import type { PublicBookingResponse, PublicSlot } from '$lib/api/schemas';
+	import { STORAGE_BAYS } from '$lib/funeral/bays';
 	import {
 		CHAIN,
 		solvePlans,
@@ -36,17 +37,6 @@
 
 	const zone = $derived(data.organization.timezone);
 	const slug = $derived(data.organization.slug);
-
-	/**
-	 * Cold storage is internal inventory. The public API deliberately does not
-	 * advertise it — a stranger has no business knowing how many bodies this
-	 * home is holding — so the bay is named here and assigned by the home.
-	 */
-	const STORAGE_BAYS: NamedResource[] = [
-		{ id: 'bay-1', name: 'Cold Storage Bay 1', resourceType: 'COLD_STORAGE' },
-		{ id: 'bay-2', name: 'Cold Storage Bay 2', resourceType: 'COLD_STORAGE' },
-		{ id: 'bay-3', name: 'Cold Storage Bay 3', resourceType: 'COLD_STORAGE' }
-	];
 
 	/**
 	 * Bays free across the hold, first. Two families cannot share one, and a
@@ -273,7 +263,17 @@
 				committalAt: committal?.startsAt ?? chosen.endsAt,
 				committalSite: committal?.resourceName ?? '—',
 				awaitingThirdParty: Boolean(committal?.thirdParty),
-				provisional: record.facts.coronerInvolved && !record.facts.coronerReleaseAt
+				provisional: record.facts.coronerInvolved && !record.facts.coronerReleaseAt,
+				// `booked` was written in step order, so the ids line up — the
+				// console shows the whole chain and not only the two dates a
+				// family remembers.
+				steps: chosen.steps.map((step, index) => ({
+					label: step.label,
+					startsAt: step.startsAt,
+					endsAt: step.endsAt,
+					resourceName: step.resourceName,
+					bookingId: booked[index]?.bookingId
+				}))
 			});
 
 			// `chosen` is a `$state` proxy and `pushState` structured-clones what it

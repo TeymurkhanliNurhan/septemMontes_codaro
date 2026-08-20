@@ -391,16 +391,29 @@
 			</div>
 		{/if}
 
-		<figure class="settle">
+		<figure
+			class="settle grid w-[min(100vw-2rem,52rem)] max-w-none items-center gap-6 sm:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] sm:gap-8"
+		>
 			<img
 				src="/afterlife.webp"
 				alt="A robed figure standing alone in a pale, misty hall."
 				class="h-auto w-full opacity-95 mix-blend-multiply"
 				style="filter: sepia(52%) saturate(70%) contrast(114%);"
 			/>
-			<figcaption class="hairline pb-3 text-xs opacity-45">
-				The far end of this booking. We are told the waiting area is pleasant.
-			</figcaption>
+			<blockquote class="sm:pl-2">
+				<p class="text-xs tracking-wider text-accent-content">★★★★★</p>
+				<div class="display mt-3 space-y-3 text-lg leading-relaxed">
+					<p>“An unbelievable transportation service, and a truly remarkable resting place.</p>
+					<p>
+						Do not mourn the dead, Harry. Pity the living—particularly those who have yet to
+						experience SeptemFuneral.
+					</p>
+					<p>Five stars. Would recommend, though preferably only once.”</p>
+				</div>
+				<footer class="mt-4 text-xs opacity-55">
+					Albus Dumbledore <span class="opacity-70">· verified — deceased</span>
+				</footer>
+			</blockquote>
 		</figure>
 
 		<div class="flex items-center gap-4 pb-4">

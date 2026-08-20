@@ -10,6 +10,7 @@ import type { CaseFacts } from './constraints';
 
 const KEY = 'septem.case';
 const BOARD_KEY = 'septem.board';
+const BOARD_SEEDED_KEY = 'septem.board.seeded';
 
 export interface Party {
 	name: string;
@@ -69,6 +70,16 @@ export function clearCase(): void {
 	sessionStorage.removeItem(KEY);
 }
 
+/** One booked step of the chain, as the console lists it under a case. */
+export interface BoardStep {
+	label: string;
+	startsAt: string;
+	endsAt: string;
+	resourceName: string;
+	/** The booking the API wrote, where there is one behind this row. */
+	bookingId?: string;
+}
+
 /** A confirmed arrangement, as the director's board shows it. */
 export interface BoardEntry {
 	reference: string;
@@ -86,6 +97,12 @@ export interface BoardEntry {
 	awaitingThirdParty: boolean;
 	/** True when the coroner has not yet released. */
 	provisional: boolean;
+	/**
+	 * The whole chain, so the console can open a case rather than read a row.
+	 * Optional: a case entered before the board carried the steps still shows
+	 * its service and committal.
+	 */
+	steps?: BoardStep[];
 }
 
 /**
@@ -97,7 +114,7 @@ export function pushBoardEntry(entry: BoardEntry): void {
 	if (typeof localStorage === 'undefined') return;
 	const entries = loadBoard().filter((existing) => existing.reference !== entry.reference);
 	entries.push(entry);
-	localStorage.setItem(BOARD_KEY, JSON.stringify(entries));
+	saveBoard(entries);
 }
 
 export function loadBoard(): BoardEntry[] {
@@ -110,6 +127,57 @@ export function loadBoard(): BoardEntry[] {
 		localStorage.removeItem(BOARD_KEY);
 		return [];
 	}
+}
+
+export function saveBoard(entries: BoardEntry[]): void {
+	if (typeof localStorage === 'undefined') return;
+	localStorage.setItem(BOARD_KEY, JSON.stringify(entries));
+}
+
+/**
+ * Amends a case. A funeral is amended constantly — the cemetery telephones
+ * back with a different hour, a bay is swapped, an executor turns out to be
+ * settling the account after all — so the console writes to the board rather
+ * than only reading it. Returns the board as it now stands.
+ */
+export function updateBoardEntry(reference: string, patch: Partial<BoardEntry>): BoardEntry[] {
+	const entries = loadBoard().map((entry) =>
+		entry.reference === reference ? { ...entry, ...patch } : entry
+	);
+	saveBoard(entries);
+	return entries;
+}
+
+export function removeBoardEntry(reference: string): BoardEntry[] {
+	const entries = loadBoard().filter((entry) => entry.reference !== reference);
+	saveBoard(entries);
+	return entries;
+}
+
+/**
+ * Writes the demonstration cases onto the board the first time the console is
+ * opened, so the work already in the building is editable like anything else
+ * rather than re-appearing from a constant on every render.
+ *
+ * The marker is kept apart from the board itself: a director who clears the
+ * board should not find the same three cases back tomorrow morning.
+ */
+export function seedBoardOnce(entries: BoardEntry[]): BoardEntry[] {
+	if (typeof localStorage === 'undefined') return [];
+	if (localStorage.getItem(BOARD_SEEDED_KEY)) return loadBoard();
+	const existing = loadBoard();
+	const known = new Set(existing.map((entry) => entry.reference));
+	const merged = [...existing, ...entries.filter((entry) => !known.has(entry.reference))];
+	saveBoard(merged);
+	localStorage.setItem(BOARD_SEEDED_KEY, 'yes');
+	return merged;
+}
+
+/** Empties the board and lets the demonstration cases be laid out again. */
+export function resetBoard(): void {
+	if (typeof localStorage === 'undefined') return;
+	localStorage.removeItem(BOARD_KEY);
+	localStorage.removeItem(BOARD_SEEDED_KEY);
 }
 
 /** Short, pronounceable, and not a UUID — staff read these aloud. */
