@@ -16,6 +16,13 @@ declare global {
 			plan?: Plan;
 			zone?: string;
 			bookings?: PublicBookingResponse[];
+			/** The deceased's name, so the upsell can use it against you. */
+			decedentName?: string;
+			/** Names of the extras taken, in the order they are offered. */
+			extras?: string[];
+			/** One-off total in zloty, and anything recurring, kept apart. */
+			total?: number;
+			monthly?: number;
 		}
 	}
 }

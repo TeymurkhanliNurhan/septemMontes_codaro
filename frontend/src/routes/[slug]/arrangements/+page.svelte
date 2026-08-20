@@ -279,8 +279,17 @@
 			// `chosen` is a `$state` proxy and `pushState` structured-clones what it
 			// is given, so the proxy must be unwrapped or the navigation throws
 			// `DataCloneError` — after five bookings have already been written.
-			await goto(resolve(`/${slug}/confirmed`), {
-				state: { reference, plan: $state.snapshot(chosen), zone, bookings: booked }
+			// The bookings are already written by this point, which is exactly when
+			// a funeral home starts selling: the family is committed, and the next
+			// page knows it.
+			await goto(resolve(`/${slug}/extras`), {
+				state: {
+					reference,
+					plan: $state.snapshot(chosen),
+					zone,
+					bookings: booked,
+					decedentName: record.decedent.name
+				}
 			});
 		} catch (cause) {
 			if (cause instanceof ApiError && cause.status === 409) {
