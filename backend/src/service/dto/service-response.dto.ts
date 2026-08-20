@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ResourceSelectionMode } from '../../common/enums/resource-selection-mode.enum';
 import { PaginationMetaDto } from '../../resource/dto/resource-response.dto';
 
 export class ServiceResponseDto {
@@ -22,6 +23,9 @@ export class ServiceResponseDto {
 
   @ApiProperty({ example: true })
   isActive: boolean;
+
+  @ApiProperty({ enum: ResourceSelectionMode })
+  resourceSelectionMode: ResourceSelectionMode;
 
   @ApiProperty({ example: {} })
   metadata: Record<string, unknown>;

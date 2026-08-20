@@ -4,6 +4,7 @@ import {
   ArrayUnique,
   IsArray,
   IsBoolean,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsObject,
@@ -15,6 +16,7 @@ import {
   Validate,
   ValidateIf,
 } from 'class-validator';
+import { ResourceSelectionMode } from '../../common/enums/resource-selection-mode.enum';
 import { IsPlainObjectConstraint } from '../../resource/dto/create-resource.dto';
 
 export class UpdateServiceDto {
@@ -101,6 +103,11 @@ export class UpdateServiceDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ enum: ResourceSelectionMode })
+  @IsOptional()
+  @IsEnum(ResourceSelectionMode)
+  resourceSelectionMode?: ResourceSelectionMode;
 
   @ApiPropertyOptional({
     type: 'object',
