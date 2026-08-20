@@ -45,8 +45,19 @@ import { ServiceResource } from './service-resource/entities/service-resource.en
     ThrottlerModule.forRoot({
       throttlers: [
         { name: 'default', ttl: 60_000, limit: 300 },
-        { name: 'login', ttl: 60_000, limit: 10 },
-        { name: 'publicWrite', ttl: 60_000, limit: 10 },
+        // 'login' and 'publicWrite' are opt-in buckets, applied only via
+        // @Throttle on the handful of routes that need a tighter limit
+        // (auth.controller.ts, public-booking.controller.ts). But
+        // @nestjs/throttler applies EVERY configured named throttler to
+        // EVERY route regardless of whether that route's handler carries
+        // @Throttle for it -- the decorator only overrides the limit where
+        // it appears, it does not scope which throttlers run. A low module
+        // default here therefore silently caps the entire API (this once
+        // capped even GET /health at 10/min). Keep these module defaults
+        // effectively unlimited; @Throttle supplies the real limit on the
+        // routes that opt in.
+        { name: 'login', ttl: 60_000, limit: Number.MAX_SAFE_INTEGER },
+        { name: 'publicWrite', ttl: 60_000, limit: Number.MAX_SAFE_INTEGER },
       ],
     }),
     TypeOrmModule.forRootAsync({
