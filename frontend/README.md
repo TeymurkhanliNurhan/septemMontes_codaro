@@ -47,13 +47,14 @@ Open `http://localhost:5173` and begin an arrangement. `VITE_API_URL` (see
 
 ## Routes
 
-| Route                  | Page                                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `/`                    | What the home is for                                                                                                |
-| `/{slug}`              | Intake — the deceased, the tradition, the coroner, the parties                                                      |
-| `/{slug}/arrangements` | The window, its constraints, and the plans that fit inside it                                                       |
-| `/{slug}/confirmed`    | The held arrangement                                                                                                |
-| `/{slug}/director`     | The home's own board: cold storage, cases it can amend, third-party slots, and the steps and resources it publishes |
+| Route                    | Page                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `/`                      | What the home is for                                                                                                |
+| `/{slug}`                | Intake — the deceased, the tradition, the coroner, the parties                                                      |
+| `/{slug}/arrangements`   | The window, its constraints, and the plans that fit inside it                                                       |
+| `/{slug}/confirmed`      | The held arrangement                                                                                                |
+| `/{slug}/director`       | The home's own board: cold storage, cases it can amend, third-party slots, and the steps and resources it publishes |
+| `/{slug}/director/login` | Staff sign-in                                                                                                       |
 
 The only data the app touches comes from the five unauthenticated routes under
 `/public` — the OpenAPI schema for them is generated into
@@ -61,12 +62,21 @@ The only data the app touches comes from the five unauthenticated routes under
 same slots it was solved from; there is no bespoke endpoint behind it, and no
 migration was needed to build any of this.
 
+The console is staff-only. It guards itself in the browser rather than on the
+server, because the session is an httpOnly cookie scoped to the API's origin
+and SvelteKit's server-side `fetch` will not forward a cookie across origins —
+so `ssr` is off for that route and the guard calls `GET /auth/me`. Nothing a
+family can reach links to it.
+
+Staff sign-in resolves against the organization named by the backend's
+`DEFAULT_ORG_SLUG`, which must match a row in `organizations.slug` or every
+login answers 404. Give an account a password with
+`npm run auth:set-password -- <email> <password>` in `backend/`.
+
 An arrangement in progress lives in `sessionStorage` and goes with the tab — a
 family fills it in over twenty minutes on the worst day of their life, and
 losing it to a refresh is not acceptable, but it is also not ours to keep. The
-director's board is `localStorage`, because it is the home's own screen. A
-case is amended there and not through the API: the write routes the admin
-panel will use are behind a session, and the console does not have one yet.
+director's board is `localStorage`, because it is the home's own screen.
 
 ## API types
 
@@ -91,6 +101,4 @@ npm run lint             # prettier + eslint
 
 - **Admin routes must set `ssr = false`.** The staff API is cookie-based, and
   the admin panel will read its own session state, which does not belong in
-  SSR data.
-- **The API client will need `credentials: 'include'`** for cookie auth. It is
-  deliberately absent today — every route the consumer app calls is public.
+  SSR data. The director console already does this.

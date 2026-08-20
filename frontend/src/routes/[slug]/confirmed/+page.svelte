@@ -20,7 +20,6 @@
 		currency: 'PLN',
 		maximumFractionDigits: 0
 	});
-	const slug = $derived(page.params.slug ?? 'septem');
 </script>
 
 <div class="mx-auto max-w-3xl">
@@ -38,6 +37,31 @@
 			<span class="opacity-55">Reference</span>
 			<span class="ml-2 font-mono">{reference}</span>
 		</p>
+
+		<!--
+			Deliberately not autoplaying, and deliberately not muted. A page someone
+			reaches an hour after arranging their mother's funeral must not start
+			making noise at them on arrival — but the sound is the point of this
+			clip, so it plays unmuted the moment they choose to press it. Browsers
+			would block autoplay-with-audio here anyway; this way the behaviour is a
+			decision rather than a browser's veto.
+
+			`preload="metadata"` because the file is 26 MB: enough to draw the
+			scrubber, not enough to pull the whole thing down for someone who never
+			presses play.
+		-->
+		<figure class="mt-10">
+			<video
+				class="w-full border border-base-300"
+				src="/farewell.mp4"
+				controls
+				playsinline
+				preload="metadata"
+			>
+				<track kind="captions" />
+			</video>
+			<figcaption class="hairline pb-3 text-xs opacity-45">One more thing. Sound on.</figcaption>
+		</figure>
 
 		<div class="hairline mt-10 pb-3">
 			<h2 class="display text-xl">The whole of it</h2>
@@ -102,10 +126,6 @@
 				</p>
 			</div>
 		{/if}
-
-		<div class="mt-10 flex gap-4">
-			<a href={resolve(`/${slug}/director`)} class="btn btn-ghost btn-sm">Director's console</a>
-		</div>
 	{:else}
 		<p class="eyebrow settle">Held</p>
 		<h1 class="display settle mt-2 text-3xl">The arrangement went through.</h1>

@@ -94,8 +94,5 @@
 			<a href="tel:+48221234567" class="link font-semibold link-hover">+48 22 123 45 67</a>. Someone
 			will pick up, and they will have a pen.
 		</p>
-		<p class="mt-6 text-xs opacity-40">
-			<a href={resolve('/septem/director')} class="link link-hover">Director's console</a>
-		</p>
 	</div>
 </div>

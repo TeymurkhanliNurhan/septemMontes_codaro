@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
+	import { logout } from '$lib/api/auth';
 	import { STORAGE_BAYS } from '$lib/funeral/bays';
 	import {
 		loadBoard,
@@ -19,6 +21,20 @@
 
 	let { data }: { data: PageData } = $props();
 	const zone = $derived(data.organization.timezone);
+
+	let signingOut = $state(false);
+
+	async function signOut(): Promise<void> {
+		if (signingOut) return;
+		signingOut = true;
+		try {
+			await logout(fetch);
+		} finally {
+			// Whether or not the API acknowledged it, leave the console: a director
+			// stepping away from a shared screen must not be kept on it by an error.
+			await goto(resolve(`/${data.organization.slug}/director/login`), { invalidateAll: true });
+		}
+	}
 
 	/**
 	 * Cases the home is carrying today. Seeded ones stand for the work already
@@ -382,13 +398,22 @@
 	}
 </script>
 
-<div class="hairline pb-5">
-	<p class="eyebrow">Today</p>
-	<h1 class="display mt-1 text-3xl">{cases.length} in our care</h1>
-	<p class="mt-2 text-sm opacity-60">
-		{awaiting.length} waiting on a third party · {provisional.length} provisional on a coroner · all times
-		{zone}
-	</p>
+<div class="hairline flex flex-wrap items-end justify-between gap-4 pb-5">
+	<div>
+		<p class="eyebrow">Today</p>
+		<h1 class="display mt-1 text-3xl">{cases.length} in our care</h1>
+		<p class="mt-2 text-sm opacity-60">
+			{awaiting.length} waiting on a third party · {provisional.length} provisional on a coroner · all
+			times {zone}
+		</p>
+	</div>
+	<div class="text-right text-xs opacity-55">
+		<p>{data.user.name || data.user.email}</p>
+		<p class="opacity-70">{data.user.role}</p>
+		<button class="mt-1 link link-hover" onclick={signOut} disabled={signingOut}>
+			{signingOut ? 'Signing out…' : 'Sign out'}
+		</button>
+	</div>
 </div>
 
 <dl class="mt-6 grid grid-cols-2 gap-px border border-base-300 bg-base-300 sm:grid-cols-4">
@@ -748,6 +773,9 @@
 	<button class="btn btn-ghost opacity-60 btn-sm" onclick={clearTheBoard}>
 		Clear the board and lay out the demonstration cases again
 	</button>
+	<p class="w-full text-xs opacity-40">
+		Not linked from anywhere a family can reach, and not theirs to see.
+	</p>
 </div>
 
 <dialog class="modal" bind:this={dialog} onclose={() => (form = undefined)}>
