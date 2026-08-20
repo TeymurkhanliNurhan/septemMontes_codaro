@@ -7,11 +7,12 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Repository } from 'typeorm';
 import { Public } from '../auth/decorators/public.decorator';
@@ -21,6 +22,7 @@ import { Resource } from '../resource/entities/resource.entity';
 import { Service } from '../service/entities/service.entity';
 import { AvailabilityService } from './availability/availability.service';
 import { eachLocalDate } from './availability/time-zone';
+import { MergedSlot } from './availability/slot-math';
 import { PublicBookingService } from './booking/public-booking.service';
 import { CreatePublicBookingDto } from './dto/create-public-booking.dto';
 import { PublicBookingResponseDto } from './dto/public-booking-response.dto';
@@ -59,6 +61,10 @@ export class PublicBookingController {
   @Get('orgs/:slug')
   @ApiOperation({ summary: 'Look up an organization by its public slug' })
   @ApiResponse({ status: HttpStatus.OK, type: PublicOrganizationDto })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Unknown organization slug',
+  })
   async getOrganization(
     @Param('slug') slug: string,
   ): Promise<PublicOrganizationDto> {
@@ -69,6 +75,10 @@ export class PublicBookingController {
   @Get('orgs/:slug/services')
   @ApiOperation({ summary: 'List bookable services for an organization' })
   @ApiResponse({ status: HttpStatus.OK, type: [PublicServiceDto] })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Unknown organization slug',
+  })
   async listServices(@Param('slug') slug: string): Promise<PublicServiceDto[]> {
     const organization = await this.findOrganization(slug);
     const services = await this.services.find({
@@ -82,6 +92,7 @@ export class PublicBookingController {
   @ApiOperation({
     summary: 'List resources a guest may choose for a CUSTOMER_CHOICE service',
   })
+  @ApiParam({ name: 'serviceId', format: 'uuid' })
   @ApiResponse({ status: HttpStatus.OK, type: [PublicResourceDto] })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -89,7 +100,7 @@ export class PublicBookingController {
   })
   async listResources(
     @Param('slug') slug: string,
-    @Param('serviceId') serviceId: string,
+    @Param('serviceId', ParseUUIDPipe) serviceId: string,
   ): Promise<PublicResourceDto[]> {
     const organization = await this.findOrganization(slug);
     const service = await this.findService(organization.id, serviceId);
@@ -102,25 +113,32 @@ export class PublicBookingController {
       throw new NotFoundException('Service not found');
     }
 
-    // capableResources is not organization-scoped, so this route must filter
-    // it the same way PublicBookingService does before trusting the list.
-    const resources = (
-      await this.availability.capableResources(service.id)
-    ).filter((resource) => resource.organizationId === organization.id);
+    // capableResources scopes by organization id in its where clause, so the
+    // org resolved from the slug is passed straight through — a resource
+    // linked to this service from another organization is never fetched.
+    const resources = await this.availability.capableResources(
+      service.id,
+      organization.id,
+    );
 
     return resources.map((resource) => this.toResourceDto(resource));
   }
 
   @Get('orgs/:slug/services/:serviceId/slots')
   @ApiOperation({ summary: 'Find bookable slots for a service' })
+  @ApiParam({ name: 'serviceId', format: 'uuid' })
   @ApiResponse({ status: HttpStatus.OK, type: [PublicSlotDto] })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
     description: 'Date range must cover 1 to 31 days',
   })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Unknown organization slug or service',
+  })
   async listSlots(
     @Param('slug') slug: string,
-    @Param('serviceId') serviceId: string,
+    @Param('serviceId', ParseUUIDPipe) serviceId: string,
     @Query() query: SlotQueryDto,
   ): Promise<PublicSlotDto[]> {
     // The range cap is the only thing standing between an anonymous request
@@ -137,6 +155,7 @@ export class PublicBookingController {
 
     const slots = await this.availability.findSlots({
       service,
+      organizationId: organization.id,
       organizationTimezone: organization.timezone,
       from: query.from,
       to: query.to,
@@ -144,11 +163,7 @@ export class PublicBookingController {
       now: Date.now(),
     });
 
-    return slots.map((slot) => ({
-      startsAt: new Date(slot.start).toISOString(),
-      endsAt: new Date(slot.end).toISOString(),
-      resourceIds: slot.resourceIds,
-    }));
+    return slots.map((slot) => this.toSlotDto(slot));
   }
 
   @Post('orgs/:slug/bookings')
@@ -157,8 +172,21 @@ export class PublicBookingController {
   @ApiOperation({ summary: 'Book a slot as a guest' })
   @ApiResponse({ status: HttpStatus.CREATED, type: PublicBookingResponseDto })
   @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Validation failure, or an unparseable startsAt',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description:
+      'Unknown organization slug, unknown/inactive/unbookable service, or bad resourceId',
+  })
+  @ApiResponse({
     status: HttpStatus.CONFLICT,
     description: 'Slot already taken',
+  })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Rate limit exceeded',
   })
   create(
     @Param('slug') slug: string,
@@ -210,6 +238,14 @@ export class PublicBookingController {
       id: resource.id,
       name: resource.name,
       resourceType: resource.resourceType,
+    };
+  }
+
+  private toSlotDto(slot: MergedSlot): PublicSlotDto {
+    return {
+      startsAt: new Date(slot.start).toISOString(),
+      endsAt: new Date(slot.end).toISOString(),
+      resourceIds: slot.resourceIds,
     };
   }
 }
