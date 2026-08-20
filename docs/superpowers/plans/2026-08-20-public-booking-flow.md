@@ -1005,6 +1005,7 @@ const MINUTE_MS = 60_000;
 
 export interface SlotSearch {
   service: Service;
+  organizationId: string;
   organizationTimezone: string;
   from: string;
   to: string;
@@ -1027,17 +1028,22 @@ export class AvailabilityService {
     private readonly bookingResources: Repository<BookingResource>,
   ) {}
 
-  /** ACTIVE resources capable of performing this service. */
-  async capableResources(serviceId: string): Promise<Resource[]> {
+  /** ACTIVE resources capable of performing this service, in this organization. */
+  async capableResources(
+    serviceId: string,
+    organizationId: string,
+    manager?: EntityManager,
+  ): Promise<Resource[]> {
     const links = await this.serviceResources.find({ where: { serviceId } });
     if (links.length === 0) return [];
 
     return this.resources.find({
       where: {
         id: In(links.map((link) => link.resourceId)),
+        organizationId,
         status: ResourceStatus.ACTIVE,
       },
-      order: { name: 'ASC' },
+      order: { name: 'ASC', id: 'ASC' },
     });
   }
 
@@ -2140,6 +2146,25 @@ answer, on a route that is `@Public()`. Six tests added, including two
 asymmetric buffer cases: the original buffer test used equal before/after
 values, so transposing the two arguments of `expandInterval` was invisible to
 the entire suite.
+
+**Task 5 — `capableResources` must be organization-scoped (commits `dd63845`,
+`a529895`).** As planned it filtered by service link and ACTIVE status only.
+`service_resources` has no cross-org constraint and `ServiceResourceService.create`
+validates nothing, so an admin in org A can link their service to org B's resource
+— and `resolveResources`, feeding the anonymous `/slots` route, never filtered the
+result, which made this a cross-tenant leak on the unauthenticated surface.
+`organizationId` is now a required parameter scoped in the `where` clause: the
+compiler catches every call site instead of each one having to remember a JS-side
+`.filter`, and the other org's row is never fetched at all. Task 7's `candidates`
+and Task 8's `listResources` dropped their now-redundant filters and pass the
+organization resolved from the slug. Pinned by a new test on the where clause and
+one on the id Task 7 passes.
+
+**Task 8 — malformed service uuids (commit `a529895`).** A non-UUID `serviceId`
+reached Postgres and surfaced as 22P02 → `QueryFailedError` → 500 with a logged
+stack on the anonymous surface, at 300/min per IP. Both parametrized routes now
+carry `ParseUUIDPipe` (400), and the Swagger declarations now cover the 400/404/429
+surface that the Task 12 generated client needs to type the error paths.
 
 ## Requirements consciously dropped
 
