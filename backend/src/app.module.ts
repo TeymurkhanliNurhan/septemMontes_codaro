@@ -24,6 +24,7 @@ import { BookingEventModule } from './booking-event/booking-event.module';
 import { BookingParticipantModule } from './booking-participant/booking-participant.module';
 import { BookingResourceModule } from './booking-resource/booking-resource.module';
 import { ServiceResourceModule } from './service-resource/service-resource.module';
+import { PublicBookingModule } from './public-booking/public-booking.module';
 import { Organization } from './organization/entities/organization.entity';
 import { User } from './user/entities/user.entity';
 import { Customer } from './customer/entities/customer.entity';
@@ -45,6 +46,7 @@ import { ServiceResource } from './service-resource/entities/service-resource.en
       throttlers: [
         { name: 'default', ttl: 60_000, limit: 300 },
         { name: 'login', ttl: 60_000, limit: 10 },
+        { name: 'publicWrite', ttl: 60_000, limit: 10 },
       ],
     }),
     TypeOrmModule.forRootAsync({
@@ -89,6 +91,7 @@ import { ServiceResource } from './service-resource/entities/service-resource.en
     BookingParticipantModule,
     BookingResourceModule,
     ServiceResourceModule,
+    PublicBookingModule,
   ],
   controllers: [AppController],
   providers: [
