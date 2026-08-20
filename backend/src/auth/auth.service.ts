@@ -38,9 +38,17 @@ export class AuthService {
   async login(dto: LoginDto, client: ClientInfo): Promise<LoginResult> {
     this.logger.debug(`Login attempt for ${dto.email}`);
 
+    const organization = await this.organizations.findBySlug(DEFAULT_ORG_SLUG);
+    if (!organization) {
+      this.logger.error(`Default organization '${DEFAULT_ORG_SLUG}' is missing`);
+      throw new NotFoundException(
+        `Default organization '${DEFAULT_ORG_SLUG}' not found`,
+      );
+    }
+
     const candidates = await this.users.findLoginCandidates(
       dto.email,
-      dto.organizationId,
+      organization.id,
     );
     const matches = await this.matchPassword(candidates, dto.password);
 

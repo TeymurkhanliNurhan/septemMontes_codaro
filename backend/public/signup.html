@@ -232,9 +232,7 @@
     </main>
 
     <script>
-      // Always register/sign in against Septem Montes (seeded org).
-      const ORGANIZATION_ID = 'a3741dfa-b1b3-4326-99cb-447869faa0c8';
-
+      // Register into septem_montes; login also forces that org on the server.
       const form = document.getElementById('signup-form');
       const message = document.getElementById('message');
       const submitBtn = document.getElementById('submit-btn');
@@ -278,7 +276,6 @@
             body: JSON.stringify({
               email: payload.email,
               password: payload.password,
-              organizationId: ORGANIZATION_ID,
             }),
           });
           const loginData = await loginResponse.json().catch(() => ({}));

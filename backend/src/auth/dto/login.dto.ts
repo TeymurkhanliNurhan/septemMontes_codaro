@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEmail,
   IsOptional,
@@ -14,18 +14,18 @@ import {
 } from '../auth.constants';
 
 export class LoginDto {
-  @ApiProperty({ example: 'berkay@example.com' })
+  @ApiProperty({ example: 'nurhankhan@example.com' })
   @IsEmail()
   @MaxLength(EMAIL_MAX_LENGTH)
   email: string;
 
-  @ApiProperty({ example: 'berkay123' })
+  @ApiProperty({ example: 'nurhan1905' })
   @IsString()
   @MinLength(PASSWORD_MIN_LENGTH)
   @MaxLength(PASSWORD_MAX_LENGTH)
   password: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  /** Ignored — login always uses the seeded septem_montes organization. */
   @IsOptional()
   @IsUUID()
   organizationId?: string;

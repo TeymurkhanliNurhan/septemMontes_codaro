@@ -210,9 +210,7 @@
     </main>
 
     <script>
-      // Always sign in against Septem Montes (seeded org).
-      const ORGANIZATION_ID = 'a3741dfa-b1b3-4326-99cb-447869faa0c8';
-
+      // Always sign in against Septem Montes (server also forces this org).
       const form = document.getElementById('signin-form');
       const message = document.getElementById('message');
       const submitBtn = document.getElementById('submit-btn');
@@ -226,7 +224,6 @@
         const payload = {
           email: document.getElementById('email').value.trim(),
           password: document.getElementById('password').value,
-          organizationId: ORGANIZATION_ID,
         };
 
         try {

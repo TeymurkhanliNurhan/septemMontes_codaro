@@ -92,16 +92,21 @@ describe('AuthService', () => {
       verbose: jest.fn(),
     };
 
+    const organizations = {
+      findBySlug: jest.fn().mockResolvedValue({
+        id: 'org-1',
+        name: 'Septem Montes',
+        slug: 'septem_montes',
+      }),
+    };
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UserService, useValue: users },
         { provide: SessionService, useValue: sessions },
         { provide: PasswordService, useValue: passwords },
-        {
-          provide: OrganizationService,
-          useValue: { findBySlug: jest.fn() },
-        },
+        { provide: OrganizationService, useValue: organizations },
         { provide: AppLogger, useValue: logger },
       ],
     }).compile();
@@ -202,11 +207,11 @@ describe('AuthService', () => {
       expect(result.user.id).toBe('user-2');
     });
 
-    it('narrows candidates by organization when one is supplied', async () => {
+    it('always scopes login to the default septem_montes organization', async () => {
       users.findLoginCandidates.mockResolvedValue([buildUser()]);
       passwords.verify.mockResolvedValue(true);
 
-      await service.login({ ...CREDENTIALS, organizationId: 'org-1' }, {});
+      await service.login(CREDENTIALS, {});
 
       expect(users.findLoginCandidates).toHaveBeenCalledWith(
         CREDENTIALS.email,
