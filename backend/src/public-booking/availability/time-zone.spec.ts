@@ -121,6 +121,33 @@ describe('resolveLocal', () => {
       /system/,
     );
   });
+
+  it('handles a 120-minute DST shift', () => {
+    expect(
+      new Date(
+        resolveLocal('2026-10-25', '02:00:00', 'Antarctica/Troll'),
+      ).toISOString(),
+    ).toBe('2026-10-25T00:00:00.000Z');
+    expect(
+      new Date(
+        resolveLocal('2026-10-25', '02:00:00', 'Antarctica/Troll', 'latest'),
+      ).toISOString(),
+    ).toBe('2026-10-25T02:00:00.000Z');
+  });
+
+  it('resolves an ambiguous time given with fractional seconds', () => {
+    expect(
+      new Date(
+        resolveLocal('2026-10-25', '02:30:00.000', 'Europe/Berlin', 'latest'),
+      ).toISOString(),
+    ).toBe('2026-10-25T01:30:00.000Z');
+  });
+
+  it('accepts an HH:mm time', () => {
+    expect(resolveLocal('2026-08-24', '09:00', 'UTC')).toBe(
+      resolveLocal('2026-08-24', '09:00:00', 'UTC'),
+    );
+  });
 });
 
 describe('localDayBounds', () => {
@@ -142,5 +169,15 @@ describe('localDayBounds', () => {
   it('crosses a month boundary for the end bound', () => {
     const { end } = localDayBounds('2026-08-31', 'UTC');
     expect(new Date(end).toISOString()).toBe('2026-09-01T00:00:00.000Z');
+  });
+
+  it('ends at the first of two midnights when the next day falls back', () => {
+    // Local 00:00 occurs twice on 2026-11-01 in Havana; the day must end at
+    // the first.
+    expect(
+      new Date(
+        localDayBounds('2026-10-31', 'America/Havana').end,
+      ).toISOString(),
+    ).toBe('2026-11-01T04:00:00.000Z');
   });
 });

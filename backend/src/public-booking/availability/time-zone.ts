@@ -5,6 +5,21 @@ export type AmbiguityPreference = 'earliest' | 'latest';
 
 const LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm:ss";
 
+// IANAZone.isValidZone is not memoized by luxon: it constructs an
+// Intl.DateTimeFormat on every call, which roughly doubles resolveLocal's
+// cost when the same zone is validated hundreds of times per request (one
+// call per date x rule x boundary). Only valid zones are cached, so this
+// set is bounded by the size of tzdb (~418 entries) regardless of input.
+const validatedZones = new Set<string>();
+
+function assertZone(zone: string): void {
+  if (validatedZones.has(zone)) return;
+  if (!IANAZone.isValidZone(zone)) {
+    throw new Error(`Unsupported timezone: ${zone}`);
+  }
+  validatedZones.add(zone);
+}
+
 /**
  * Day of week for a calendar date, 0 = Sunday through 6 = Saturday.
  *
@@ -71,9 +86,7 @@ export function resolveLocal(
   zone: string,
   prefer: AmbiguityPreference = 'earliest',
 ): number {
-  if (!IANAZone.isValidZone(zone)) {
-    throw new Error(`Unsupported timezone: ${zone}`);
-  }
+  assertZone(zone);
 
   const local = `${date}T${normalizeTime(time)}`;
   const parsed = DateTime.fromISO(local, { zone });
