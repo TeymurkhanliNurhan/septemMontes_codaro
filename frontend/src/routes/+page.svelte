@@ -2,77 +2,100 @@
 	import { resolve } from '$app/paths';
 </script>
 
+<!--
+	The homepage's job is not to explain the scheduler. Somebody arrives here
+	within an hour of the worst telephone call of their life, and what they need
+	is to be met, told that little is required of them today, and given a number
+	to ring.
+
+	So the humour here is recognition rather than jokes: the absurdity of grief
+	arriving with paperwork attached, of a cemetery having opinions about
+	Tuesday, of ringing a stranger at three in the morning. Nothing on this page
+	is at the expense of the person who died, and nothing on it is a feature.
+-->
 <div class="mx-auto w-full max-w-4xl px-5 py-16 sm:py-24">
-	<p class="eyebrow settle">Track B · Booking and resource scheduling</p>
-	<h1 class="display settle mt-4 text-4xl leading-[1.08] sm:text-6xl">
-		Booking software for the one customer who
-		<span class="marker">will never leave a review.</span>
+	<p class="settle text-sm opacity-55">A funeral home in Warsaw. Someone answers at every hour.</p>
+	<!--
+		The break is forced so the highlighted phrase never wraps: left to itself
+		the line broke after "the", which left one orphaned word sitting in its own
+		ochre box and read as a mistake rather than a mark.
+	-->
+	<h1 class="display settle mt-4 text-4xl leading-[1.1] sm:text-6xl">
+		Come in. Sit down.<br class="hidden sm:inline" />
+		Let us do <span class="marker">the difficult parts.</span>
 	</h1>
 	<p class="settle mt-7 max-w-2xl text-lg leading-relaxed opacity-75">
-		Septem Funeral schedules funerals. The person the booking is for has died, somebody else is
-		paying, and not one of them gets to pick the date — a coroner does, or a religion does, or the
-		only crematorium in the city does. So we stopped showing a calendar and started showing the
-		reasoning.
+		Someone has died and — unforgivably — that has produced paperwork, telephone calls, and a
+		cemetery with firm opinions about Tuesday. Those are ours. Yours is everything else, at whatever
+		pace today turns out to allow.
 	</p>
 
-	<div class="settle mt-9 flex flex-wrap items-center gap-3">
+	<div class="settle mt-9 flex flex-wrap items-center gap-4">
 		<a href={resolve('/septem')} class="btn btn-lg btn-primary">Begin an arrangement</a>
-		<a href={resolve('/septem/director')} class="btn btn-ghost btn-lg">Director's console</a>
+		<span class="text-sm opacity-60">or telephone us, which most people prefer</span>
 	</div>
 
-	<div class="mt-20 grid gap-5 sm:grid-cols-3">
+	<div class="mt-20 grid gap-10 sm:grid-cols-3">
 		<div class="settle border-t-2 border-base-content pt-5">
-			<p class="eyebrow">Nobody picks</p>
-			<h2 class="display mt-2 text-xl">The date is derived</h2>
+			<h2 class="display text-xl">There is no wrong hour</h2>
 			<p class="mt-2 text-sm leading-relaxed opacity-70">
-				Time of death, coroner's release, what the faith asks, which relative is still in the air.
-				Five constraints go in, a window comes out, and the app shows its working rather than
-				asserting a Tuesday.
+				Three in the morning is an entirely ordinary time to ring a funeral home, and you will not
+				be the first tonight. Whoever picks up will not sound as though they were asleep. They were.
 			</p>
 		</div>
 		<div class="settle border-t-2 border-base-content pt-5">
-			<p class="eyebrow">Five bookings, one funeral</p>
-			<h2 class="display mt-2 text-xl">It is a chain</h2>
+			<h2 class="display text-xl">Nothing is decided today</h2>
 			<p class="mt-2 text-sm leading-relaxed opacity-70">
-				Preparation, viewing, service, hearse, committal — each depending on the last, across six
-				kinds of resource. The family chooses between whole plans. There is no slot grid anywhere in
-				this product.
+				Nothing here takes a payment, holds you to anything, or emails you next week to ask whether
+				you have finished. We had strong feelings about that last one.
 			</p>
 		</div>
 		<div class="settle border-t-2 border-base-content pt-5">
-			<p class="eyebrow">The thing that runs out</p>
-			<h2 class="display mt-2 text-xl">Cold storage</h2>
+			<h2 class="display text-xl">We will tell you the truth about the date</h2>
 			<p class="mt-2 text-sm leading-relaxed opacity-70">
-				A chapel is busy for an hour. A refrigerated bay is occupied for nine days. Both are
-				resources, only one of them is a countdown, and the home has three.
+				Not a calendar of hopeful Tuesdays. The day is settled between a coroner, a faith, and a man
+				at the cemetery called Piotr. We will show you all three, and you are very welcome to argue
+				with any of them.
 			</p>
 		</div>
 	</div>
 
 	<div class="hairline mt-20 pb-5">
-		<p class="eyebrow">Three people, and the software keeps them apart</p>
+		<h2 class="display text-2xl">Who we will be speaking to</h2>
 	</div>
 	<dl class="mt-7 grid gap-8 sm:grid-cols-3">
 		<div>
-			<dt class="display text-lg">The deceased</dt>
+			<dt class="display text-lg">The person who has died</dt>
 			<dd class="mt-1.5 text-sm leading-relaxed opacity-70">
-				Cannot fill in a form, accept your terms, or click the link in a confirmation email. The
-				subject of the booking, and never a user of it.
+				We will ask for their name first, before yours, because they are the reason any of us are
+				here. Nothing will be sent to them and nothing will be asked of them.
 			</dd>
 		</div>
 		<div>
-			<dt class="display text-lg">The arranger</dt>
+			<dt class="display text-lg">You</dt>
 			<dd class="mt-1.5 text-sm leading-relaxed opacity-70">
-				A daughter, an executor, a neighbour who volunteered and now regrets it. Makes every
-				decision and settles none of the bill.
+				A daughter, an executor, a neighbour who volunteered on the doorstep and has been quietly
+				regretting it since. Whoever you are, you are the one we ring.
 			</dd>
 		</div>
 		<div>
-			<dt class="display text-lg">The payer</dt>
+			<dt class="display text-lg">Whoever settles the account</dt>
 			<dd class="mt-1.5 text-sm leading-relaxed opacity-70">
-				An estate, an insurer, a brother in Chicago. Asked for by name at intake, because finding
-				out afterwards is how a grieving family gets invoiced twice.
+				Usually somebody else — an estate, an insurer, a brother in Chicago who offered on the
+				telephone and will be gently held to it. We ask early so that nobody is surprised later.
 			</dd>
 		</div>
 	</dl>
+
+	<div class="mt-20 border-t-2 border-base-content pt-6">
+		<p class="max-w-2xl leading-relaxed">
+			If you would rather not do any of this on a website — and most people would rather not —
+			telephone
+			<a href="tel:+48221234567" class="link font-semibold link-hover">+48 22 123 45 67</a>. Someone
+			will pick up, and they will have a pen.
+		</p>
+		<p class="mt-6 text-xs opacity-40">
+			<a href={resolve('/septem/director')} class="link link-hover">Director's console</a>
+		</p>
+	</div>
 </div>
