@@ -11,7 +11,12 @@ import { Resource } from '../../resource/entities/resource.entity';
 import { Service } from '../../service/entities/service.entity';
 import { ServiceResource } from '../../service-resource/entities/service-resource.entity';
 import { buildWindows } from './build-windows';
-import { Interval } from './interval';
+import {
+  expandInterval,
+  Interval,
+  mergeIntervals,
+  subtractIntervals,
+} from './interval';
 import { computeSlots, MergedSlot, mergeResourceSlots } from './slot-math';
 import { eachLocalDate } from './time-zone';
 
@@ -31,6 +36,11 @@ export interface SlotSearch {
  * narrowing `isSlotFree`'s search range around a single `startsAt`. Falls
  * back to the UTC calendar date if the zone can't be resolved, rather than
  * throwing — `organizations.timezone` is free-text with no CHECK constraint.
+ * This fallback only picks which dates to load, not a correctness boundary:
+ * `buildWindows` independently warns for every rule/exception row using the
+ * same bad zone, so a malformed organization timezone is never invisible —
+ * it just surfaces as a logged warning and reduced availability rather than
+ * a crash here.
  */
 function localDateString(instant: number, zone: string): string {
   try {
@@ -112,7 +122,23 @@ export class AvailabilityService {
   }
 
   /**
-   * True when this exact instant is still bookable on this resource.
+   * True when `[startsAt, startsAt + duration)` is fully bookable on this
+   * resource, i.e. contained in one free interval and not in the past.
+   *
+   * This answers the containment question directly rather than regenerating
+   * `findSlots`' slot grid and looking `startsAt` up in it. The grid's phase
+   * depends on where its underlying free interval starts, which shifts with
+   * how wide the requested date range is whenever windows bridge midnight
+   * (a 24/7 resource, or adjacent daily rules that touch) and the duration
+   * doesn't evenly divide a day (e.g. 50 or 25 minutes, but not 30 or 60).
+   * A grid built from a narrow range and one built from a wide range then
+   * disagree on which instants are valid starts, so narrowing the range (as
+   * this method must, to stay cheap) previously rejected slots `findSlots`
+   * had just advertised. Containment has no grid to be out of phase with,
+   * so the range width stops being a correctness concern — only a
+   * load-window heuristic for which rows to fetch. It also fixes a
+   * pre-existing false conflict: an unrelated booking elsewhere in the day
+   * no longer re-phases the whole grid and knocks out unrelated slots.
    *
    * Callers use this inside a transaction with a row lock already held on
    * the resource, so `manager` must be passed to run every query on the
@@ -120,12 +146,6 @@ export class AvailabilityService {
    * can't see the locking transaction's snapshot, and (under load) can
    * starve the pool waiting for a connection that a sibling request is
    * holding open for the same reason.
-   *
-   * The search range is narrowed to the local date of `startsAt` (in the
-   * organization's timezone) plus one day on each side, rather than trusting
-   * the caller's full `search.from`/`search.to` window, which can span up to
-   * 31 days. The margin covers a resource rule whose own timezone shifts a
-   * window onto the adjacent calendar date.
    */
   async isSlotFree(
     resourceId: string,
@@ -133,6 +153,8 @@ export class AvailabilityService {
     search: SlotSearch,
     manager?: EntityManager,
   ): Promise<boolean> {
+    if (startsAt < search.now) return false;
+
     const resources = manager?.getRepository(Resource) ?? this.resources;
     const resource = await resources.findOne({
       where: { id: resourceId, status: ResourceStatus.ACTIVE },
@@ -146,8 +168,23 @@ export class AvailabilityService {
       to: addDays(anchor, 1),
     };
 
-    const slots = await this.slotsForResource(resource, narrowed, manager);
-    return slots.some((slot) => slot.start === startsAt);
+    const windows = await this.windowsForResource(resource, narrowed, manager);
+    if (windows.length === 0) return false;
+
+    const busy = await this.busyForResource(resource.id, windows, manager);
+    const blocked = busy.map((interval) =>
+      expandInterval(
+        interval,
+        search.service.bufferBeforeMinutes * MINUTE_MS,
+        search.service.bufferAfterMinutes * MINUTE_MS,
+      ),
+    );
+    const free = subtractIntervals(mergeIntervals(windows), blocked);
+
+    const end = startsAt + search.service.durationMinutes * MINUTE_MS;
+    return free.some(
+      (interval) => interval.start <= startsAt && end <= interval.end,
+    );
   }
 
   private async resolveResources(

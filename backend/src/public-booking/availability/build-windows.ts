@@ -5,6 +5,9 @@ import { AvailabilityExceptionType } from '../../common/enums/availability-excep
 import { Interval, mergeIntervals, subtractIntervals } from './interval';
 import { localDayOfWeek, resolveLocal } from './time-zone';
 
+// One context for the whole availability engine, not a copy-paste of the
+// class name: this module is a free function, not a NestJS provider, but
+// its warnings belong in the same log stream as AvailabilityService's.
 const logger = new Logger('AvailabilityService');
 
 /**
@@ -18,7 +21,10 @@ const logger = new Logger('AvailabilityService');
  * free-text with no CHECK constraint. A rule or exception whose zone
  * `resolveLocal` can't resolve is skipped and logged rather than allowed to
  * throw, so one bad row degrades this resource to less availability instead
- * of failing the whole caller.
+ * of failing the whole caller. Each offending row is logged at most once
+ * per call, not once per date it's checked against — a bad zone is a
+ * property of the row, not of any one date, and this loop revisits every
+ * row once per date in the range.
  */
 export function buildWindows(
   dates: string[],
@@ -29,9 +35,16 @@ export function buildWindows(
   let windows: Interval[] = [];
   const blocks: Interval[] = [];
   const openings: Interval[] = [];
+  const warned = new Set<string>();
 
   for (const date of dates) {
-    const weekday = localDayOfWeek(date);
+    let weekday: number;
+    try {
+      weekday = localDayOfWeek(date);
+    } catch (error) {
+      logger.warn(`Skipping date "${date}": ${describeError(error)}`);
+      continue;
+    }
 
     for (const rule of rules) {
       if (rule.dayOfWeek !== weekday) continue;
@@ -42,7 +55,9 @@ export function buildWindows(
           end: resolveLocal(date, rule.endTime, zone, 'latest'),
         });
       } catch (error) {
-        logger.warn(
+        warnOnce(
+          warned,
+          `rule:${rule.id}`,
           `Skipping availability rule ${rule.id} for resource ${rule.resourceId}: invalid timezone "${zone}" (${describeError(error)})`,
         );
       }
@@ -62,7 +77,9 @@ export function buildWindows(
           openings.push(interval);
         }
       } catch (error) {
-        logger.warn(
+        warnOnce(
+          warned,
+          `exception:${exception.id}`,
           `Skipping availability exception ${exception.id} for resource ${exception.resourceId}: invalid timezone "${zone}" (${describeError(error)})`,
         );
       }
@@ -71,6 +88,12 @@ export function buildWindows(
 
   windows = subtractIntervals(windows, blocks);
   return mergeIntervals([...windows, ...openings]);
+}
+
+function warnOnce(warned: Set<string>, key: string, message: string): void {
+  if (warned.has(key)) return;
+  warned.add(key);
+  logger.warn(message);
 }
 
 function describeError(error: unknown): string {

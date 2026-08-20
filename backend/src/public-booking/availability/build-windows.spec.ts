@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { AvailabilityException } from '../../availability-exception/entities/availability-exception.entity';
 import { AvailabilityRule } from '../../availability-rule/entities/availability-rule.entity';
 import { AvailabilityExceptionType } from '../../common/enums/availability-exception-type.enum';
@@ -251,5 +252,106 @@ describe('buildWindows', () => {
         end: Date.parse('2026-08-25T17:00:00.000Z'),
       },
     ]);
+  });
+
+  it('an exception on one date does not affect other dates in the range', () => {
+    const TUESDAY = '2026-08-25';
+
+    const windows = buildWindows(
+      [MONDAY, TUESDAY],
+      [buildRule({ dayOfWeek: 1 }), buildRule({ dayOfWeek: 2 })],
+      [
+        buildException({
+          exceptionDate: TUESDAY,
+          startTime: '09:00:00',
+          endTime: '17:00:00',
+          exceptionType: AvailabilityExceptionType.UNAVAILABLE,
+        }),
+      ],
+      'UTC',
+    );
+
+    // Only Tuesday is closed. If the per-date filter on exceptionDate were
+    // missing, this single exception would apply to every date `buildWindows`
+    // is asked about -- exactly the shape `windowsForResource` fetches in,
+    // since it loads all exceptions in the range with one `In(dates)` query.
+    expect(windows).toEqual([
+      {
+        start: Date.parse('2026-08-24T09:00:00.000Z'),
+        end: Date.parse('2026-08-24T17:00:00.000Z'),
+      },
+    ]);
+  });
+
+  it('resolves a rule end time to the later occurrence on an ambiguous fall-back date', () => {
+    // Europe/Berlin falls back from 03:00 to 02:00 on 2026-10-25 (a Sunday,
+    // weekday 0), so 02:00-03:00 occurs twice. A rule ending at 02:30 must
+    // resolve to the *later* occurrence, so the window spans the repeated
+    // hour instead of closing an hour early.
+    const SUNDAY = '2026-10-25';
+
+    const windows = buildWindows(
+      [SUNDAY],
+      [
+        buildRule({
+          dayOfWeek: 0,
+          startTime: '01:00:00',
+          endTime: '02:30:00',
+          timezone: 'Europe/Berlin',
+        }),
+      ],
+      [],
+      'UTC',
+    );
+
+    expect(windows).toEqual([
+      {
+        start: Date.parse('2026-10-24T23:00:00.000Z'),
+        end: Date.parse('2026-10-25T01:30:00.000Z'),
+      },
+    ]);
+  });
+
+  it('skips a malformed date instead of throwing, leaving other dates intact', () => {
+    const windows = buildWindows(
+      ['not-a-date', MONDAY],
+      [buildRule()],
+      [],
+      'UTC',
+    );
+
+    expect(windows).toEqual([
+      {
+        start: Date.parse('2026-08-24T09:00:00.000Z'),
+        end: Date.parse('2026-08-24T17:00:00.000Z'),
+      },
+    ]);
+  });
+
+  it('logs a bad rule at most once per call, not once per date it matches', () => {
+    const warnSpy = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+
+    const badRule = buildRule({
+      id: 'rule-bad-repeat',
+      dayOfWeek: 1,
+      timezone: 'Not/A_Real_Zone',
+    });
+
+    // Three Mondays: the same rule matches all three dates in one call.
+    buildWindows(
+      ['2026-08-24', '2026-08-31', '2026-09-07'],
+      [badRule],
+      [],
+      'UTC',
+    );
+
+    const ruleWarnings = warnSpy.mock.calls.filter(([message]) =>
+      String(message).includes(`rule ${badRule.id}`),
+    );
+    expect(ruleWarnings).toHaveLength(1);
+
+    warnSpy.mockRestore();
   });
 });
