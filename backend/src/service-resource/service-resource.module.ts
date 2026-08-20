@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServiceResource } from './entities/service-resource.entity';
-import { ServiceResourceController } from './service-resource.controller';
-import { ServiceResourceService } from './service-resource.service';
 
+/**
+ * Entity-only module. Service ↔ resource linking is exposed via nested
+ * routes on ServiceController (`/services/:id/resources`).
+ */
 @Module({
   imports: [TypeOrmModule.forFeature([ServiceResource])],
-  controllers: [ServiceResourceController],
-  providers: [ServiceResourceService],
-  exports: [ServiceResourceService],
+  exports: [TypeOrmModule],
 })
 export class ServiceResourceModule {}
