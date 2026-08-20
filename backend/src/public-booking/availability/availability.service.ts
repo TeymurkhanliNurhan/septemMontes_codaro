@@ -67,12 +67,28 @@ export class AvailabilityService {
     private readonly bookingResources: Repository<BookingResource>,
   ) {}
 
-  /** ACTIVE resources capable of performing this service. */
-  async capableResources(serviceId: string): Promise<Resource[]> {
-    const links = await this.serviceResources.find({ where: { serviceId } });
+  /**
+   * ACTIVE resources capable of performing this service.
+   *
+   * Same reasoning as `isSlotFree`: a caller running this inside a
+   * transaction must pass its `manager` so both queries land on the locking
+   * connection, not a second pooled one — otherwise, holding a transaction
+   * connection while this opens another is enough to wedge the pool (max 10,
+   * no connection timeout) under concurrent load, even before any row lock
+   * is taken.
+   */
+  async capableResources(
+    serviceId: string,
+    manager?: EntityManager,
+  ): Promise<Resource[]> {
+    const serviceResources =
+      manager?.getRepository(ServiceResource) ?? this.serviceResources;
+    const resources = manager?.getRepository(Resource) ?? this.resources;
+
+    const links = await serviceResources.find({ where: { serviceId } });
     if (links.length === 0) return [];
 
-    return this.resources.find({
+    return resources.find({
       where: {
         id: In(links.map((link) => link.resourceId)),
         status: ResourceStatus.ACTIVE,
@@ -134,8 +150,11 @@ export class AvailabilityService {
     return slots.some((slot) => slot.start === startsAt);
   }
 
-  private async resolveResources(search: SlotSearch): Promise<Resource[]> {
-    const capable = await this.capableResources(search.service.id);
+  private async resolveResources(
+    search: SlotSearch,
+    manager?: EntityManager,
+  ): Promise<Resource[]> {
+    const capable = await this.capableResources(search.service.id, manager);
     if (!search.resourceId) return capable;
     return capable.filter((resource) => resource.id === search.resourceId);
   }
