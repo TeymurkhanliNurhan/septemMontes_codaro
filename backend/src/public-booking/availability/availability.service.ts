@@ -1,19 +1,19 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
 import { AvailabilityException } from '../../availability-exception/entities/availability-exception.entity';
 import { AvailabilityRule } from '../../availability-rule/entities/availability-rule.entity';
 import { Booking } from '../../booking/entities/booking.entity';
 import { BookingResource } from '../../booking-resource/entities/booking-resource.entity';
-import { AvailabilityExceptionType } from '../../common/enums/availability-exception-type.enum';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { ResourceStatus } from '../../common/enums/resource-status.enum';
 import { Resource } from '../../resource/entities/resource.entity';
 import { Service } from '../../service/entities/service.entity';
 import { ServiceResource } from '../../service-resource/entities/service-resource.entity';
-import { Interval, mergeIntervals, subtractIntervals } from './interval';
+import { buildWindows } from './build-windows';
+import { Interval } from './interval';
 import { computeSlots, MergedSlot, mergeResourceSlots } from './slot-math';
-import { eachLocalDate, localDayOfWeek, resolveLocal } from './time-zone';
+import { eachLocalDate } from './time-zone';
 
 const MINUTE_MS = 60_000;
 
@@ -52,14 +52,8 @@ function addDays(date: string, delta: number): string {
   return shifted.toISOString().slice(0, 10);
 }
 
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 @Injectable()
 export class AvailabilityService {
-  private readonly logger = new Logger(AvailabilityService.name);
-
   constructor(
     @InjectRepository(Resource)
     private readonly resources: Repository<Resource>,
@@ -167,15 +161,9 @@ export class AvailabilityService {
   }
 
   /**
-   * Availability windows for one resource across the requested dates.
-   * UNAVAILABLE exceptions are subtracted first and AVAILABLE ones unioned
-   * after, so an explicit opening always beats an overlapping block.
-   *
-   * `organizations.timezone` and `availability_rules.timezone` are free-text
-   * with no CHECK constraint. A rule or exception with an unresolvable zone
-   * is skipped and logged rather than allowed to throw: one bad row on one
-   * resource must degrade that resource to "no availability", not 500 the
-   * whole multi-resource search for the organization.
+   * Availability windows for one resource across the requested dates: loads
+   * its weekly rules and any per-date exceptions, then delegates the
+   * precedence and timezone-resolution logic to `buildWindows`.
    */
   private async windowsForResource(
     resource: Resource,
@@ -196,53 +184,12 @@ export class AvailabilityService {
       }),
     ]);
 
-    let windows: Interval[] = [];
-    const blocks: Interval[] = [];
-    const openings: Interval[] = [];
-
-    for (const date of dates) {
-      const weekday = localDayOfWeek(date);
-
-      for (const rule of ruleRows) {
-        if (rule.dayOfWeek !== weekday) continue;
-        const zone = rule.timezone ?? search.organizationTimezone;
-        try {
-          windows.push({
-            start: resolveLocal(date, rule.startTime, zone, 'earliest'),
-            end: resolveLocal(date, rule.endTime, zone, 'latest'),
-          });
-        } catch (error) {
-          this.logger.warn(
-            `Skipping availability rule ${rule.id} for resource ${resource.id}: invalid timezone "${zone}" (${describeError(error)})`,
-          );
-        }
-      }
-
-      for (const exception of exceptionRows) {
-        if (exception.exceptionDate !== date) continue;
-        const zone = search.organizationTimezone;
-        try {
-          const interval = {
-            start: resolveLocal(date, exception.startTime, zone, 'earliest'),
-            end: resolveLocal(date, exception.endTime, zone, 'latest'),
-          };
-          if (
-            exception.exceptionType === AvailabilityExceptionType.UNAVAILABLE
-          ) {
-            blocks.push(interval);
-          } else {
-            openings.push(interval);
-          }
-        } catch (error) {
-          this.logger.warn(
-            `Skipping availability exception ${exception.id} for resource ${resource.id}: invalid timezone "${zone}" (${describeError(error)})`,
-          );
-        }
-      }
-    }
-
-    windows = subtractIntervals(windows, blocks);
-    return mergeIntervals([...windows, ...openings]);
+    return buildWindows(
+      dates,
+      ruleRows,
+      exceptionRows,
+      search.organizationTimezone,
+    );
   }
 
   /** Non-cancelled bookings occupying this resource inside the search range. */
