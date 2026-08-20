@@ -17,7 +17,22 @@ npm run start:dev
 
 - API: `http://localhost:3005`
 - Swagger: `http://localhost:3005/api` (development only; disabled when `NODE_ENV=production`)
+- Sign-in: `http://localhost:3005/signin.html`
+- Sign-up (workers): `http://localhost:3005/signup.html`
+- Resources admin: `http://localhost:3005/resources.html`
 - Health: `GET /health` (public)
+
+## Logging
+
+Daily log files are written to `backend/logs/`:
+
+| File pattern | Contents |
+|--------------|----------|
+| `app-YYYY-MM-DD.log` | info and above |
+| `warn-YYYY-MM-DD.log` | warn and above |
+| `error-YYYY-MM-DD.log` | errors only |
+
+Use `AppLogger` (`logger.log` / `warn` / `error` / `debug` / `verbose`) anywhere via DI.
 
 ## Auth
 
@@ -49,6 +64,7 @@ database dump alone cannot be replayed.
 | Route | Purpose |
 |-------|---------|
 | `POST /auth/login` | Sign in; sets the session cookie. Rate limited to 10/min. |
+| `POST /auth/register` | Public register into `septem_montes` |
 | `POST /auth/logout` | Revoke the current session, clear the cookie |
 | `POST /auth/logout-all` | Revoke every session for this user |
 | `GET /auth/me` | The signed-in user |
@@ -56,7 +72,7 @@ database dump alone cannot be replayed.
 | `DELETE /auth/sessions?id=` | Revoke one session |
 | `POST /auth/change-password` | Change your own password; signs other devices out |
 
-`GET /health` and `POST /auth/login` are the only public routes.
+`GET /health`, `POST /auth/login`, and `POST /auth/register` are public.
 
 ### Creating the first user
 
@@ -67,10 +83,21 @@ npm run auth:set-password -- berkay@example.com 'berkay123' \
   --create --org septem-montes --name "Berkay Bayar" --role OWNER
 ```
 
-Re-run without `--create` to reset any existing user's password (which also
-revokes their sessions). After that, owners and admins create colleagues
-through `POST /users` with an optional `password` field; an account created
-without one simply cannot log in until someone sets it.
+Or use public registration into the seeded `septem_montes` org:
+
+```http
+POST /auth/register
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "password": "SecurePass123!",
+  "role": "STAFF"
+}
+```
+
+Re-run `auth:set-password` without `--create` to reset any existing user's
+password (which also revokes their sessions). Owners and admins can also create
+colleagues through `POST /users` with an optional `password` field.
 
 An email is unique per organization, not globally. Login is email + password;
 if the same address exists in several organizations and the password matches
@@ -136,6 +163,7 @@ npm run migration:generate   # after entity changes
 
 - `src/migrations/20260820000000-InitialSchema.ts` — tables from the ERD
 - `src/migrations/20260820120000-AuthSessions.ts` — `users.password_hash` + `sessions`
+- `src/migrations/20260820140000-SeedSeptemMontesOrgAndNullableUserUpdatedAt.ts` — seed org + nullable `users.updated_at`
 
 ## Notes
 

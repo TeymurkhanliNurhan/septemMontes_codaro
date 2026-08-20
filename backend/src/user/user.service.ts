@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { PasswordService } from '../auth/services/password.service';
@@ -10,6 +10,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entity';
 import { UserAccessPolicy } from './user-access.policy';
+
+export const DEFAULT_ORG_SLUG = 'septem_montes';
 
 @Injectable()
 export class UserService {
@@ -60,6 +62,38 @@ export class UserService {
     });
   }
 
+  async registerInDefaultOrg(input: {
+    name: string;
+    email: string;
+    password: string;
+    role: UserRole;
+    organizationId: string;
+  }): Promise<UserResponseDto> {
+    const email = normalizeEmail(input.email);
+    const existing = await this.users.findOne({
+      where: { organizationId: input.organizationId, email },
+    });
+    if (existing) {
+      throw new ConflictException('Email already registered');
+    }
+
+    const user = await this.users.save(
+      this.users.create({
+        organizationId: input.organizationId,
+        name: input.name,
+        email,
+        role: input.role,
+        metadata: {},
+        passwordHash: await this.passwords.hash(input.password),
+        updatedAt: null,
+      }),
+    );
+
+    await this.users.update(user.id, { updatedAt: null });
+    user.updatedAt = null;
+    return UserResponseDto.fromEntity(user);
+  }
+
   async create(dto: CreateUserDto, actor: AuthUser): Promise<UserResponseDto> {
     const role = dto.role ?? UserRole.STAFF;
     this.policy.assertCanAssignRole(actor, role);
@@ -74,9 +108,12 @@ export class UserService {
         passwordHash: dto.password
           ? await this.passwords.hash(dto.password)
           : null,
+        updatedAt: null,
       }),
     );
 
+    await this.users.update(user.id, { updatedAt: null });
+    user.updatedAt = null;
     return UserResponseDto.fromEntity(user);
   }
 
@@ -122,6 +159,7 @@ export class UserService {
     if (dto.password !== undefined) {
       user.passwordHash = await this.passwords.hash(dto.password);
     }
+    user.updatedAt = new Date();
     return user;
   }
 

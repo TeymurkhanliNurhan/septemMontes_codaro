@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ResourceService } from '../resource/resource.service';
 import { BookingResource } from './entities/booking-resource.entity';
 import { CreateBookingResourceDto } from './dto/create-booking-resource.dto';
 import { BookingResourceResponseDto } from './dto/booking-resource-response.dto';
@@ -10,6 +11,7 @@ export class BookingResourceService {
   constructor(
     @InjectRepository(BookingResource)
     private readonly repo: Repository<BookingResource>,
+    private readonly resourceService: ResourceService,
   ) {}
 
   async findAll(
@@ -22,6 +24,7 @@ export class BookingResourceService {
   async create(
     dto: CreateBookingResourceDto,
   ): Promise<BookingResourceResponseDto> {
+    await this.resourceService.assertUsableForNewBooking(dto.resourceId);
     const entity = this.repo.create(dto);
     return this.repo.save(entity);
   }

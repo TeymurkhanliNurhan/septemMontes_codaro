@@ -27,8 +27,8 @@ export class UserResponseDto {
   @ApiProperty()
   createdAt: Date;
 
-  @ApiProperty()
-  updatedAt: Date;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' })
+  updatedAt: Date | null;
 
   static fromEntity(user: User): UserResponseDto {
     return {
@@ -37,7 +37,7 @@ export class UserResponseDto {
       name: user.name,
       email: user.email,
       role: user.role,
-      hasPassword: user.passwordHash !== null,
+      hasPassword: user.passwordHash !== null && user.passwordHash !== undefined,
       metadata: user.metadata,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

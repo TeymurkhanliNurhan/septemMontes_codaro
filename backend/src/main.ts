@@ -4,30 +4,41 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import { join } from 'path';
 import { AppModule } from './app.module';
 import {
   SessionConfig,
   SESSION_CONFIG_KEY,
 } from './auth/config/session.config';
+import { AppLogger } from './common/logger/app-logger.service';
+import { getLogDirectory } from './common/logger/winston.config';
 import { resolveTrustProxy } from './common/utils/trust-proxy';
 
 const DEFAULT_DEV_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:4173',
   'http://localhost:3000',
+  'http://localhost:3005',
 ];
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
   const configService = app.get(ConfigService);
   const session = configService.getOrThrow<SessionConfig>(SESSION_CONFIG_KEY);
   const isProduction = configService.get<string>('NODE_ENV') === 'production';
+
+  const logger = await app.resolve(AppLogger);
+  logger.setContext('Bootstrap');
+  app.useLogger(logger);
 
   app.set(
     'trust proxy',
     resolveTrustProxy(configService.get<string>('TRUST_PROXY')),
   );
   app.use(cookieParser());
+  app.useStaticAssets(join(__dirname, '..', 'public'));
 
   const configured = configService.get<string>('CORS_ORIGINS');
   const allowedOrigins = configured
@@ -76,9 +87,25 @@ async function bootstrap() {
       )
       .build();
 
-    SwaggerModule.setup('api', app, SwaggerModule.createDocument(app, config));
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        tryItOutEnabled: true,
+        displayRequestDuration: true,
+        docExpansion: 'list',
+        filter: true,
+        tagsSorter: 'alpha',
+        operationsSorter: 'alpha',
+      },
+      customSiteTitle: 'Septem Montes API',
+    });
   }
 
-  await app.listen(process.env.PORT ?? 3005, '0.0.0.0');
+  const port = process.env.PORT ?? 3005;
+  await app.listen(port, '0.0.0.0');
+  logger.log(`Application listening on http://localhost:${port}`);
+  logger.log(`Swagger docs at http://localhost:${port}/api`);
+  logger.log(`Daily log files in ${getLogDirectory()}`);
 }
 void bootstrap();

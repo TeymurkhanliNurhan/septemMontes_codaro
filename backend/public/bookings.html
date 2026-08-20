@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bookings · Septem Montes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #14231c;
+        --moss: #1f4d3a;
+        --leaf: #2f6b4f;
+        --mist: #e8efe9;
+        --sand: #d4c4a8;
+        --paper: #f7f5f0;
+        --danger: #9b2c2c;
+        --radius: 10px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Source Sans 3', sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(1200px 600px at 10% -10%, #c5d9ce 0%, transparent 55%),
+          radial-gradient(900px 500px at 100% 0%, #e2d6c2 0%, transparent 50%),
+          linear-gradient(160deg, #f3efe6 0%, #e7eee9 45%, #dfe8e2 100%);
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid color-mix(in srgb, var(--moss) 12%, transparent);
+        background: color-mix(in srgb, var(--paper) 70%, white);
+      }
+      header h1 {
+        margin: 0;
+        font-family: Fraunces, Georgia, serif;
+        font-size: clamp(1.6rem, 3vw, 2rem);
+        color: var(--moss);
+      }
+      header .meta, nav {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: #4a5c52;
+        font-size: 0.95rem;
+      }
+      nav a {
+        color: var(--moss);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      nav a[aria-current='page'] {
+        text-decoration: underline;
+        text-underline-offset: 0.25rem;
+      }
+      main {
+        width: min(1100px, 100%);
+        margin: 0 auto;
+        padding: 1.5rem;
+      }
+      .toolbar {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+      }
+      button, .secondary {
+        border: 0;
+        border-radius: 8px;
+        padding: 0.55rem 0.9rem;
+        background: var(--moss);
+        color: white;
+        font: inherit;
+        cursor: pointer;
+      }
+      button.secondary, .secondary {
+        background: color-mix(in srgb, var(--mist) 70%, white);
+        color: var(--ink);
+      }
+      button.danger { background: var(--danger); }
+      button:disabled { opacity: 0.6; cursor: not-allowed; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: color-mix(in srgb, var(--paper) 85%, white);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      th, td {
+        text-align: left;
+        padding: 0.75rem 0.85rem;
+        border-bottom: 1px solid color-mix(in srgb, var(--moss) 10%, transparent);
+        vertical-align: top;
+      }
+      th { font-size: 0.85rem; color: #4a5c52; }
+      .status {
+        display: inline-block;
+        padding: 0.15rem 0.45rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        background: var(--mist);
+      }
+      .status.CONFIRMED { background: #d7eadf; }
+      .status.CANCELLED, .status.NO_SHOW { background: #f3d6d6; }
+      .status.COMPLETED { background: #dde7f3; }
+      .loading, .empty, .error-state, .message {
+        padding: 1rem;
+        border-radius: var(--radius);
+        background: color-mix(in srgb, var(--paper) 80%, white);
+      }
+      .error-state, .message.error { color: var(--danger); }
+      .message.success { color: var(--leaf); }
+      .actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+      dialog {
+        border: 0;
+        border-radius: 14px;
+        padding: 0;
+        width: min(720px, calc(100vw - 2rem));
+        background: var(--paper);
+        box-shadow: 0 20px 60px rgba(20, 35, 28, 0.2);
+      }
+      dialog::backdrop { background: rgba(20, 35, 28, 0.35); }
+      .dialog-body { padding: 1.25rem 1.4rem 1.4rem; }
+      .dialog-body h2 {
+        margin: 0 0 1rem;
+        font-family: Fraunces, Georgia, serif;
+        color: var(--moss);
+      }
+      label { display: grid; gap: 0.35rem; margin-bottom: 0.85rem; font-size: 0.92rem; }
+      input, textarea, select {
+        font: inherit;
+        padding: 0.55rem 0.7rem;
+        border-radius: 8px;
+        border: 1px solid color-mix(in srgb, var(--moss) 20%, transparent);
+        background: white;
+      }
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.6rem;
+        margin-top: 1rem;
+      }
+      .tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0 0 1rem;
+      }
+      .tabs button[aria-selected='true'] {
+        background: var(--moss);
+        color: white;
+      }
+      dl.detail {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem 1rem;
+        margin: 0;
+      }
+      dl.detail dt { font-size: 0.8rem; color: #4a5c52; }
+      dl.detail dd { margin: 0.15rem 0 0; }
+      .timeline {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.9rem;
+      }
+      .timeline li {
+        position: relative;
+        padding: 0.85rem 0.95rem 0.85rem 1.1rem;
+        border-left: 3px solid var(--leaf);
+        background: color-mix(in srgb, white 70%, var(--mist));
+        border-radius: 0 10px 10px 0;
+      }
+      .timeline .when {
+        font-size: 0.82rem;
+        color: #4a5c52;
+      }
+      .timeline .type {
+        font-weight: 600;
+        margin: 0.15rem 0;
+      }
+      .timeline .payload {
+        font-size: 0.9rem;
+        color: #31453a;
+        margin-top: 0.35rem;
+      }
+      @media (max-width: 800px) {
+        header { flex-direction: column; align-items: flex-start; }
+        dl.detail { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Bookings</h1>
+        <div class="meta" id="user-meta">Loading…</div>
+      </div>
+      <div class="meta">
+        <nav>
+          <a href="/resources.html">Resources</a>
+          <a href="/services.html">Services</a>
+          <a href="/bookings.html" aria-current="page">Bookings</a>
+        </nav>
+        <a href="/signin.html">Sign in</a>
+        <button type="button" class="secondary" id="logout-btn">Log out</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="toolbar">
+        <button type="button" id="create-btn" hidden>New booking</button>
+        <button type="button" class="secondary" id="refresh-btn">Refresh</button>
+      </div>
+      <div id="toast" class="message" hidden></div>
+      <div id="list-state" class="loading">Loading bookings…</div>
+      <div id="table-wrap" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Starts</th>
+              <th>Ends</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </main>
+
+    <dialog id="form-dialog">
+      <form class="dialog-body" id="booking-form">
+        <h2 id="form-title">New booking</h2>
+        <label>
+          Title
+          <input id="title" maxlength="255" />
+        </label>
+        <label>
+          Starts at
+          <input id="startsAt" type="datetime-local" required />
+        </label>
+        <label>
+          Ends at
+          <input id="endsAt" type="datetime-local" required />
+        </label>
+        <label>
+          Notes
+          <textarea id="notes" rows="3"></textarea>
+        </label>
+        <div class="message" id="form-message"></div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" id="cancel-form">Cancel</button>
+          <button type="submit" id="save-btn">Create</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="detail-dialog">
+      <div class="dialog-body">
+        <h2 id="detail-title">Booking</h2>
+        <div class="tabs">
+          <button type="button" class="secondary" data-tab="overview" aria-selected="true">Overview</button>
+          <button type="button" class="secondary" data-tab="history">History</button>
+        </div>
+        <div id="panel-overview">
+          <dl class="detail" id="detail-content"></dl>
+          <div class="actions" id="detail-actions" style="margin-top:1rem"></div>
+        </div>
+        <div id="panel-history" hidden>
+          <div id="history-state" class="loading">Loading history…</div>
+          <ul class="timeline" id="history-list" hidden></ul>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" id="close-detail">Close</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="reschedule-dialog">
+      <form class="dialog-body" id="reschedule-form">
+        <h2>Reschedule</h2>
+        <label>
+          New start
+          <input id="reschedule-start" type="datetime-local" required />
+        </label>
+        <label>
+          New end
+          <input id="reschedule-end" type="datetime-local" required />
+        </label>
+        <label>
+          Reason
+          <input id="reschedule-reason" maxlength="2000" />
+        </label>
+        <div class="message" id="reschedule-message"></div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" id="cancel-reschedule">Cancel</button>
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="cancel-dialog">
+      <form class="dialog-body" id="cancel-form">
+        <h2>Cancel booking</h2>
+        <label>
+          Reason
+          <input id="cancel-reason" maxlength="2000" />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" id="cancel-cancel">Back</button>
+          <button type="submit" class="danger">Cancel booking</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script>
+      const READ_ROLES = new Set(['OWNER', 'ADMIN', 'STAFF']);
+      const ACTION_ROLES = new Set(['OWNER', 'ADMIN', 'STAFF']);
+      const DELETE_ROLES = new Set(['OWNER', 'ADMIN']);
+
+      const state = {
+        user: null,
+        canAct: false,
+        canDelete: false,
+        bookings: [],
+        detailId: null,
+        detail: null,
+        events: [],
+      };
+
+      const els = {
+        toast: document.getElementById('toast'),
+        userMeta: document.getElementById('user-meta'),
+        listState: document.getElementById('list-state'),
+        tableWrap: document.getElementById('table-wrap'),
+        rows: document.getElementById('rows'),
+        createBtn: document.getElementById('create-btn'),
+        refreshBtn: document.getElementById('refresh-btn'),
+        formDialog: document.getElementById('form-dialog'),
+        form: document.getElementById('booking-form'),
+        formMessage: document.getElementById('form-message'),
+        title: document.getElementById('title'),
+        startsAt: document.getElementById('startsAt'),
+        endsAt: document.getElementById('endsAt'),
+        notes: document.getElementById('notes'),
+        detailDialog: document.getElementById('detail-dialog'),
+        detailTitle: document.getElementById('detail-title'),
+        detailContent: document.getElementById('detail-content'),
+        detailActions: document.getElementById('detail-actions'),
+        historyState: document.getElementById('history-state'),
+        historyList: document.getElementById('history-list'),
+        panelOverview: document.getElementById('panel-overview'),
+        panelHistory: document.getElementById('panel-history'),
+        rescheduleDialog: document.getElementById('reschedule-dialog'),
+        rescheduleForm: document.getElementById('reschedule-form'),
+        rescheduleStart: document.getElementById('reschedule-start'),
+        rescheduleEnd: document.getElementById('reschedule-end'),
+        rescheduleReason: document.getElementById('reschedule-reason'),
+        rescheduleMessage: document.getElementById('reschedule-message'),
+        cancelDialog: document.getElementById('cancel-dialog'),
+        cancelForm: document.getElementById('cancel-form'),
+        cancelReason: document.getElementById('cancel-reason'),
+      };
+
+      function showToast(text, kind) {
+        els.toast.hidden = !text;
+        els.toast.className = `message ${kind || ''}`;
+        els.toast.textContent = text || '';
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;');
+      }
+
+      function formatError(data, fallback) {
+        if (!data) return fallback;
+        if (Array.isArray(data.message)) return data.message.join(', ');
+        if (data.message) return String(data.message);
+        return fallback;
+      }
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, {
+          ...options,
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(options.headers || {}),
+          },
+        });
+        if (response.status === 401) {
+          localStorage.removeItem('user');
+          window.location.href = '/signin.html';
+          throw new Error('Session expired');
+        }
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : null;
+        if (!response.ok) {
+          const error = new Error(formatError(data, 'Request failed'));
+          error.status = response.status;
+          throw error;
+        }
+        return data;
+      }
+
+      function toLocalInput(iso) {
+        const d = new Date(iso);
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+
+      function fromLocalInput(value) {
+        return new Date(value).toISOString();
+      }
+
+      function requireAuth() {
+        const rawUser = localStorage.getItem('user');
+        if (!rawUser) {
+          window.location.href = '/signin.html';
+          return null;
+        }
+        try {
+          const user = JSON.parse(rawUser);
+          if (!READ_ROLES.has(user.role)) {
+            showToast('Your role cannot access bookings.', 'error');
+            return null;
+          }
+          state.user = user;
+          state.canAct = ACTION_ROLES.has(user.role);
+          state.canDelete = DELETE_ROLES.has(user.role);
+          els.userMeta.textContent = `${user.name} · ${user.role}`;
+          els.createBtn.hidden = !state.canAct;
+          return user;
+        } catch {
+          window.location.href = '/signin.html';
+          return null;
+        }
+      }
+
+      function setDetailTab(tab) {
+        els.panelOverview.hidden = tab !== 'overview';
+        els.panelHistory.hidden = tab !== 'history';
+        document.querySelectorAll('#detail-dialog .tabs button').forEach((btn) => {
+          btn.setAttribute('aria-selected', btn.dataset.tab === tab ? 'true' : 'false');
+        });
+        if (tab === 'history' && state.detailId) {
+          loadHistory(state.detailId);
+        }
+      }
+
+      function renderPayload(event) {
+        const p = event.payload || {};
+        if (event.eventType === 'RESCHEDULED') {
+          return `Old time: ${new Date(p.oldStart).toLocaleString()} – ${new Date(p.oldEnd).toLocaleString()}<br/>
+            New time: ${new Date(p.newStart).toLocaleString()} – ${new Date(p.newEnd).toLocaleString()}${
+            p.reason ? `<br/>Reason: ${escapeHtml(p.reason)}` : ''
+          }`;
+        }
+        if (event.eventType === 'CANCELLED' && p.reason) {
+          return `Reason: ${escapeHtml(p.reason)}`;
+        }
+        if (event.eventType === 'CONFIRMED' && p.confirmationMethod) {
+          return `Method: ${escapeHtml(p.confirmationMethod)}`;
+        }
+        if (event.eventType === 'CREATED' && p.source) {
+          return `Source: ${escapeHtml(p.source)}`;
+        }
+        return '';
+      }
+
+      async function loadBookings() {
+        els.listState.hidden = false;
+        els.listState.className = 'loading';
+        els.listState.textContent = 'Loading bookings…';
+        els.tableWrap.hidden = true;
+        try {
+          const result = await api('/bookings');
+          state.bookings = result.data || [];
+          if (!state.bookings.length) {
+            els.listState.className = 'empty';
+            els.listState.textContent = 'No bookings yet.';
+            return;
+          }
+          els.rows.innerHTML = state.bookings
+            .map((item) => {
+              const actions = [
+                `<button type="button" class="secondary" data-action="view" data-id="${item.id}">View</button>`,
+              ];
+              return `<tr>
+                <td>${escapeHtml(item.title || 'Untitled')}</td>
+                <td><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span></td>
+                <td>${new Date(item.startsAt).toLocaleString()}</td>
+                <td>${new Date(item.endsAt).toLocaleString()}</td>
+                <td><div class="actions">${actions.join('')}</div></td>
+              </tr>`;
+            })
+            .join('');
+          els.listState.hidden = true;
+          els.tableWrap.hidden = false;
+        } catch (error) {
+          els.listState.className = 'error-state';
+          els.listState.textContent = error.message || 'Failed to load bookings.';
+        }
+      }
+
+      function renderDetailActions(item) {
+        if (!state.canAct) {
+          els.detailActions.innerHTML = '';
+          return;
+        }
+        const buttons = [];
+        if (item.status === 'PENDING') {
+          buttons.push(`<button type="button" data-action="confirm">Confirm</button>`);
+        }
+        if (item.status === 'PENDING' || item.status === 'CONFIRMED') {
+          buttons.push(`<button type="button" class="secondary" data-action="reschedule">Reschedule</button>`);
+          buttons.push(`<button type="button" class="danger" data-action="cancel">Cancel</button>`);
+        }
+        if (item.status === 'CONFIRMED') {
+          buttons.push(`<button type="button" class="secondary" data-action="complete">Complete</button>`);
+          buttons.push(`<button type="button" class="secondary" data-action="no-show">No-show</button>`);
+        }
+        if (state.canDelete) {
+          buttons.push(`<button type="button" class="danger" data-action="delete">Delete</button>`);
+        }
+        els.detailActions.innerHTML = buttons.join('');
+      }
+
+      async function openDetail(id) {
+        try {
+          const result = await api(`/bookings?id=${id}`);
+          const item = result.data;
+          state.detailId = id;
+          state.detail = item;
+          els.detailTitle.textContent = item.title || 'Booking';
+          els.detailContent.innerHTML = `
+            <div><dt>Status</dt><dd><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span></dd></div>
+            <div><dt>Starts</dt><dd>${new Date(item.startsAt).toLocaleString()}</dd></div>
+            <div><dt>Ends</dt><dd>${new Date(item.endsAt).toLocaleString()}</dd></div>
+            <div><dt>Notes</dt><dd>${escapeHtml(item.notes || '—')}</dd></div>
+            <div><dt>Created</dt><dd>${new Date(item.createdAt).toLocaleString()}</dd></div>
+            <div><dt>Updated</dt><dd>${new Date(item.updatedAt).toLocaleString()}</dd></div>
+          `;
+          renderDetailActions(item);
+          setDetailTab('overview');
+          els.detailDialog.showModal();
+        } catch (error) {
+          showToast(error.message || 'Failed to load booking.', 'error');
+        }
+      }
+
+      async function loadHistory(bookingId) {
+        els.historyState.hidden = false;
+        els.historyState.className = 'loading';
+        els.historyState.textContent = 'Loading history…';
+        els.historyList.hidden = true;
+        try {
+          const result = await api(`/bookings/${bookingId}/events`);
+          state.events = result.data || [];
+          if (!state.events.length) {
+            els.historyState.className = 'empty';
+            els.historyState.textContent = 'No history events yet.';
+            return;
+          }
+          els.historyList.innerHTML = state.events
+            .map((event) => {
+              const actor = event.actorUserId
+                ? `by user ${escapeHtml(event.actorUserId.slice(0, 8))}…`
+                : 'by system';
+              const payloadHtml = renderPayload(event);
+              return `<li>
+                <div class="when">${new Date(event.createdAt).toLocaleString()}</div>
+                <div class="type">${escapeHtml(event.eventType)}</div>
+                <div class="when">${actor}</div>
+                ${payloadHtml ? `<div class="payload">${payloadHtml}</div>` : ''}
+              </li>`;
+            })
+            .join('');
+          els.historyState.hidden = true;
+          els.historyList.hidden = false;
+        } catch (error) {
+          els.historyState.className = 'error-state';
+          els.historyState.textContent = error.message || 'Failed to load history.';
+        }
+      }
+
+      async function runAction(action) {
+        if (!state.detailId) return;
+        try {
+          if (action === 'confirm') {
+            await api(`/bookings/${state.detailId}/confirm`, { method: 'POST', body: '{}' });
+            showToast('Booking confirmed.', 'success');
+          } else if (action === 'complete') {
+            await api(`/bookings/${state.detailId}/complete`, { method: 'POST', body: '{}' });
+            showToast('Booking completed.', 'success');
+          } else if (action === 'no-show') {
+            await api(`/bookings/${state.detailId}/no-show`, { method: 'POST', body: '{}' });
+            showToast('Marked as no-show.', 'success');
+          } else if (action === 'delete') {
+            if (!window.confirm('Delete this booking?')) return;
+            await api(`/bookings/${state.detailId}`, { method: 'DELETE' });
+            showToast('Booking deleted.', 'success');
+            els.detailDialog.close();
+            await loadBookings();
+            return;
+          } else if (action === 'reschedule') {
+            els.rescheduleStart.value = toLocalInput(state.detail.startsAt);
+            els.rescheduleEnd.value = toLocalInput(state.detail.endsAt);
+            els.rescheduleReason.value = '';
+            els.rescheduleMessage.textContent = '';
+            els.rescheduleDialog.showModal();
+            return;
+          } else if (action === 'cancel') {
+            els.cancelReason.value = '';
+            els.cancelDialog.showModal();
+            return;
+          }
+          await openDetail(state.detailId);
+          await loadBookings();
+        } catch (error) {
+          showToast(error.message || 'Action failed.', 'error');
+        }
+      }
+
+      els.form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        els.saveBtn = document.getElementById('save-btn');
+        els.saveBtn.disabled = true;
+        els.formMessage.className = 'message';
+        els.formMessage.textContent = '';
+        try {
+          await api('/bookings', {
+            method: 'POST',
+            body: JSON.stringify({
+              title: els.title.value.trim() || undefined,
+              startsAt: fromLocalInput(els.startsAt.value),
+              endsAt: fromLocalInput(els.endsAt.value),
+              notes: els.notes.value.trim() || undefined,
+            }),
+          });
+          showToast('Booking created.', 'success');
+          els.formDialog.close();
+          await loadBookings();
+        } catch (error) {
+          els.formMessage.className = 'message error';
+          els.formMessage.textContent = error.message || 'Create failed.';
+        } finally {
+          els.saveBtn.disabled = false;
+        }
+      });
+
+      els.rescheduleForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+          await api(`/bookings/${state.detailId}/reschedule`, {
+            method: 'POST',
+            body: JSON.stringify({
+              startsAt: fromLocalInput(els.rescheduleStart.value),
+              endsAt: fromLocalInput(els.rescheduleEnd.value),
+              reason: els.rescheduleReason.value.trim() || undefined,
+            }),
+          });
+          showToast('Booking rescheduled.', 'success');
+          els.rescheduleDialog.close();
+          await openDetail(state.detailId);
+          await loadBookings();
+        } catch (error) {
+          els.rescheduleMessage.className = 'message error';
+          els.rescheduleMessage.textContent = error.message || 'Reschedule failed.';
+        }
+      });
+
+      els.cancelForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+          await api(`/bookings/${state.detailId}/cancel`, {
+            method: 'POST',
+            body: JSON.stringify({
+              reason: els.cancelReason.value.trim() || undefined,
+            }),
+          });
+          showToast('Booking cancelled.', 'success');
+          els.cancelDialog.close();
+          await openDetail(state.detailId);
+          await loadBookings();
+        } catch (error) {
+          showToast(error.message || 'Cancel failed.', 'error');
+        }
+      });
+
+      els.rows.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action="view"]');
+        if (button) openDetail(button.dataset.id);
+      });
+
+      els.detailActions.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (button) runAction(button.dataset.action);
+      });
+
+      document.querySelectorAll('#detail-dialog .tabs button').forEach((button) => {
+        button.addEventListener('click', () => setDetailTab(button.dataset.tab));
+      });
+
+      els.createBtn.addEventListener('click', () => {
+        els.form.reset();
+        els.formMessage.textContent = '';
+        const start = new Date();
+        start.setMinutes(0, 0, 0);
+        start.setHours(start.getHours() + 1);
+        const end = new Date(start.getTime() + 60 * 60 * 1000);
+        els.startsAt.value = toLocalInput(start.toISOString());
+        els.endsAt.value = toLocalInput(end.toISOString());
+        els.formDialog.showModal();
+      });
+      els.refreshBtn.addEventListener('click', loadBookings);
+      document.getElementById('cancel-form').addEventListener('click', () => els.formDialog.close());
+      document.getElementById('close-detail').addEventListener('click', () => els.detailDialog.close());
+      document.getElementById('cancel-reschedule').addEventListener('click', () => els.rescheduleDialog.close());
+      document.getElementById('cancel-cancel').addEventListener('click', () => els.cancelDialog.close());
+      document.getElementById('logout-btn').addEventListener('click', async () => {
+        try {
+          await api('/auth/logout', { method: 'POST', body: '{}' });
+        } catch {
+          /* ignore */
+        }
+        localStorage.removeItem('user');
+        window.location.href = '/signin.html';
+      });
+
+      if (requireAuth()) {
+        loadBookings();
+      }
+    </script>
+  </body>
+</html>

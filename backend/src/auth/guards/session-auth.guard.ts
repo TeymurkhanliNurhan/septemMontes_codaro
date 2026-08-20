@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Response } from 'express';
 import { AuthUser } from '../../common/types/authenticated-request';
+import { User } from '../../user/entities/user.entity';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { Session } from '../entities/session.entity';
 import {
@@ -9,9 +10,11 @@ import {
   MissingSessionException,
 } from '../exceptions/unauthenticated.exception';
 import { SessionCookieService } from '../services/session-cookie.service';
+import {
+  ResolvedSession,
+  SessionService,
+} from '../services/session.service';
 import { SessionRequest } from '../types/session-request';
-import { ResolvedSession, SessionService } from '../services/session.service';
-import { User } from '../../user/entities/user.entity';
 
 @Injectable()
 export class SessionAuthGuard implements CanActivate {

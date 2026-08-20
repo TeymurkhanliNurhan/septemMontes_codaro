@@ -7,7 +7,6 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   Unique,
-  UpdateDateColumn,
 } from 'typeorm';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { Organization } from '../../organization/entities/organization.entity';
@@ -39,14 +38,6 @@ export class User {
 
   @Column({
     type: 'varchar',
-    length: 50,
-    name: 'role',
-    default: UserRole.STAFF,
-  })
-  role: UserRole;
-
-  @Column({
-    type: 'varchar',
     length: 255,
     name: 'password_hash',
     nullable: true,
@@ -54,14 +45,22 @@ export class User {
   })
   passwordHash: string | null;
 
+  @Column({
+    type: 'varchar',
+    length: 50,
+    name: 'role',
+    default: UserRole.STAFF,
+  })
+  role: UserRole;
+
   @Column({ type: 'jsonb', name: 'metadata', default: {} })
   metadata: Record<string, unknown>;
 
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
-  updatedAt: Date;
+  @Column({ type: 'timestamptz', name: 'updated_at', nullable: true })
+  updatedAt: Date | null;
 
   @OneToMany(() => Booking, (booking) => booking.createdByUser)
   createdBookings: Booking[];
