@@ -38,8 +38,11 @@ const MINUTE_MS = 60_000;
  *   scopes neither `capableResources` nor `isSlotFree` by organization, so this
  *   service filters the candidate list itself. Without that, a caller could post
  *   another organization's `resourceId` and have a slot computed from it.
- * - **Availability is re-derived under a row lock.** The slot list a browser is
- *   holding may be seconds stale. See `claimResource`.
+ * - **Availability is re-derived under a row lock, on this transaction's own
+ *   connection.** The slot list a browser is holding may be seconds stale, so
+ *   `claimResource` locks the row and asks again — handing `isSlotFree` this
+ *   transaction's `EntityManager` so the re-check reads the snapshot the lock
+ *   protects instead of checking out a second connection from a pool of ten.
  */
 @Injectable()
 export class PublicBookingService {
@@ -143,6 +146,13 @@ export class PublicBookingService {
     const capable = (
       await this.availability.capableResources(service.id)
     ).filter((resource) => resource.organizationId === organizationId);
+
+    // No candidates at all is a configuration problem, not contention. Saying
+    // "that time was just taken" would invite the guest to retry a service
+    // that no resource can ever perform.
+    if (capable.length === 0) {
+      throw new NotFoundException('This service is not currently bookable');
+    }
 
     if (!requestedResourceId) return capable;
 

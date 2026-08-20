@@ -486,11 +486,11 @@ describe('PublicBookingService.create', () => {
       );
     });
 
-    it('returns 409 when the service has no capable resource at all', async () => {
+    it('rejects a service with no capable resource as unbookable, not taken', async () => {
       const { service } = buildHarness({ capable: [] });
 
       await expect(service.create('acme', buildDto())).rejects.toThrow(
-        ConflictException,
+        NotFoundException,
       );
     });
 
@@ -653,6 +653,9 @@ describe('PublicBookingService.create', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    // The org-1 resource is load-bearing: without it the filtered set would be
+    // empty and the "not bookable" guard would reject before the requested-id
+    // check ran, so the test would pass without proving anything about it.
     it('rejects a capable resource that belongs to another organization', async () => {
       const { service } = buildHarness({
         capable: [
@@ -661,6 +664,7 @@ describe('PublicBookingService.create', () => {
             name: 'Aaron',
             organizationId: 'org-2',
           }),
+          buildResource({ id: 'r-1', name: 'Bella' }),
         ],
       });
 
