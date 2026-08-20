@@ -918,7 +918,7 @@ export { DAY_MS };
 cd backend && npx jest src/public-booking/availability/time-zone.spec.ts
 ```
 
-Expected: PASS, 12 tests.
+Expected: PASS, 14 tests.
 
 Every fixture above was verified against luxon before this plan was written: Berlin springs forward 2026-03-29 and falls back 2026-10-25, both Sundays, and Istanbul sits at UTC+3 year-round. If a DST test fails, suspect the implementation. To re-confirm the fixtures themselves:
 
