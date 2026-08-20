@@ -24,6 +24,28 @@ describe('mergeIntervals', () => {
       iv(13, 14),
     ]);
   });
+
+  it('swallows an interval contained in another', () => {
+    expect(mergeIntervals([iv(9, 17), iv(11, 12)])).toEqual([iv(9, 17)]);
+  });
+
+  it('does not mutate the input array', () => {
+    const input = [iv(9, 17), iv(11, 12)];
+    const inputSnapshot = input.map((i) => ({ ...i }));
+    mergeIntervals(input);
+    expect(input).toEqual(inputSnapshot);
+  });
+
+  it('filters out zero-length intervals', () => {
+    expect(mergeIntervals([iv(9, 12), iv(12, 12), iv(15, 17)])).toEqual([
+      iv(9, 12),
+      iv(15, 17),
+    ]);
+  });
+
+  it('filters out inverted intervals', () => {
+    expect(mergeIntervals([iv(9, 17), iv(14, 12)])).toEqual([iv(9, 17)]);
+  });
 });
 
 describe('subtractIntervals', () => {
@@ -50,7 +72,7 @@ describe('subtractIntervals', () => {
     expect(subtractIntervals([iv(9, 17)], [iv(8, 18)])).toEqual([]);
   });
 
-  it('drops zero-length remnants', () => {
+  it('removes a window when a cut exactly matches it', () => {
     expect(subtractIntervals([iv(9, 17)], [iv(9, 17)])).toEqual([]);
   });
 
@@ -58,6 +80,14 @@ describe('subtractIntervals', () => {
     expect(
       subtractIntervals([iv(9, 12), iv(13, 17)], [iv(10, 11), iv(14, 16)]),
     ).toEqual([iv(9, 10), iv(11, 12), iv(13, 14), iv(16, 17)]);
+  });
+
+  it('leaves a window intact when a zero-length cut does not overlap', () => {
+    expect(subtractIntervals([iv(9, 17)], [iv(12, 12)])).toEqual([iv(9, 17)]);
+  });
+
+  it('handles an inverted cut gracefully', () => {
+    expect(subtractIntervals([iv(9, 17)], [iv(14, 12)])).toEqual([iv(9, 17)]);
   });
 });
 
@@ -68,5 +98,9 @@ describe('expandInterval', () => {
       start: at(9, 45),
       end: at(11, 30),
     });
+  });
+
+  it('returns the same interval when buffers are zero', () => {
+    expect(expandInterval(iv(10, 11), 0, 0)).toEqual(iv(10, 11));
   });
 });

@@ -4,11 +4,14 @@ export interface Interval {
   end: number;
 }
 
-/** Sorts by start and coalesces anything overlapping or touching. */
+/** Sorts by start and coalesces anything overlapping or touching. Filters out degenerate intervals where end <= start. */
 export function mergeIntervals(intervals: Interval[]): Interval[] {
-  if (intervals.length === 0) return [];
+  const sorted = intervals
+    .filter((interval) => interval.end > interval.start)
+    .sort((a, b) => a.start - b.start);
 
-  const sorted = [...intervals].sort((a, b) => a.start - b.start);
+  if (sorted.length === 0) return [];
+
   const merged: Interval[] = [{ ...sorted[0] }];
 
   for (const current of sorted.slice(1)) {
@@ -25,7 +28,9 @@ export function mergeIntervals(intervals: Interval[]): Interval[] {
 
 /**
  * Removes every part of `cuts` from `base`. A cut landing inside a base
- * interval splits it in two. Zero-length remnants are discarded.
+ * interval splits it in two. Output is normalized: sorted by start, disjoint,
+ * with zero-length remnants discarded. This normalization applies regardless of
+ * input order.
  */
 export function subtractIntervals(
   base: Interval[],
@@ -56,7 +61,10 @@ export function subtractIntervals(
   return remaining.filter((window) => window.end > window.start);
 }
 
-/** Widens an interval, used to apply a service's before/after buffers. */
+/**
+ * Widens an interval by applying before/after buffers. Buffers are expected to
+ * be non-negative.
+ */
 export function expandInterval(
   interval: Interval,
   beforeMs: number,
