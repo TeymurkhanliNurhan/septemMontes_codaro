@@ -30,7 +30,7 @@ describe('mergeIntervals', () => {
   });
 
   it('does not mutate the input array', () => {
-    const input = [iv(13, 15), iv(9, 12), iv(11, 14)];
+    const input = [iv(20, 21), iv(9, 12), iv(20, 23), iv(11, 14)];
     const inputSnapshot = input.map((i) => ({ ...i }));
     mergeIntervals(input);
     expect(input).toEqual(inputSnapshot);
