@@ -179,12 +179,27 @@ export class PublicBookingService {
   }
 
   /**
-   * Locks a candidate row, then re-derives availability for that instant.
+   * Locks every candidate up front, then re-derives availability for that
+   * instant in preference order.
    *
    * The lock is the serialisation point: a competing transaction holding it has
    * either committed its booking — visible to the re-check that follows — or
    * rolled back. Checking availability without the lock, or holding the lock
    * without re-checking, both allow two consumers to claim one slot.
+   *
+   * The locks are taken in a single `ORDER BY resource.id` statement so that
+   * every transaction acquires these rows in the same order. Locking in
+   * preference order instead would let a guest who named `r-2` acquire
+   * `[r-2, r-1]` while a guest who named nothing acquires `[r-1, r-2]`; if both
+   * first choices are busy that is an ABBA cycle, which Postgres breaks by
+   * aborting one with 40P01 — a 500 for that guest rather than a retryable 409,
+   * after both have waited out `deadlock_timeout`.
+   *
+   * Residual, deliberately not fixed here: the availability re-derivations
+   * still run one per candidate with every lock held, so a service with many
+   * resources at a fully-booked instant holds them all for the duration of N
+   * derivations. Capping the candidate list would silently make some resources
+   * unbookable, which is worse; this is recorded as an open item instead.
    */
   private async claimResource(
     manager: EntityManager,
@@ -192,13 +207,23 @@ export class PublicBookingService {
     startsAt: number,
     search: SlotSearch,
   ): Promise<Resource> {
-    for (const candidate of candidates) {
-      await manager
-        .createQueryBuilder(Resource, 'resource')
-        .setLock('pessimistic_write')
-        .where('resource.id = :id', { id: candidate.id })
-        .getOne();
+    // Unreachable today — `candidates` rejects an empty capable set before this
+    // runs — but kept so no future change can reach the `IN ()` below, which is
+    // a syntax error rather than an empty result.
+    if (candidates.length === 0) {
+      throw new ConflictException('That time was just taken');
+    }
 
+    await manager
+      .createQueryBuilder(Resource, 'resource')
+      .setLock('pessimistic_write')
+      .where('resource.id IN (:...ids)', {
+        ids: candidates.map((candidate) => candidate.id),
+      })
+      .orderBy('resource.id', 'ASC')
+      .getMany();
+
+    for (const candidate of candidates) {
       // The manager is not optional in practice: without it the re-check runs
       // on a second pool connection while this transaction holds the first, so
       // it cannot see this snapshot and, with pool max 10 and no connection

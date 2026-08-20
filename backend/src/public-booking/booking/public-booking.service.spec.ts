@@ -165,20 +165,32 @@ function buildManager(db: FakeDb, timeline: string[]): EntityManager {
   let nextBooking = 0;
 
   const lockQuery = () => {
-    let locked = '?';
+    let ids: string[] = [];
     let mode = 'none';
+    let ordered = false;
     const qb = {
       setLock(lockMode: string) {
         mode = lockMode;
         return qb;
       },
       where(_sql: string, params: Record<string, unknown>) {
-        locked = String(params.id);
+        ids = (params.ids as string[] | undefined) ?? [];
         return qb;
       },
-      getOne(): Promise<Resource | null> {
-        timeline.push(`lock:${locked}:${mode}`);
-        return Promise.resolve(pick(db.capable, { id: locked }));
+      orderBy(field: string, direction: string) {
+        ordered = field === 'resource.id' && direction === 'ASC';
+        return qb;
+      },
+      getMany(): Promise<Resource[]> {
+        // ORDER BY is honoured literally: without it the rows lock in the
+        // order the caller listed them, which is the deadlock-prone shape.
+        const acquired = ordered ? [...ids].sort() : ids;
+        timeline.push(`lock:${acquired.join(',')}:${mode}`);
+        return Promise.resolve(
+          acquired
+            .map((id) => pick(db.capable, { id }))
+            .filter((row): row is Resource => row !== null),
+        );
       },
     };
     return qb;
@@ -214,8 +226,7 @@ function buildManager(db: FakeDb, timeline: string[]): EntityManager {
       if (target === Organization)
         return Promise.resolve(pick(db.organizations, where));
       if (target === Service) return Promise.resolve(pick(db.services, where));
-      if (target === Customer)
-        return Promise.resolve(pick(db.customers, where));
+      // Customers resolve only through the query builder — see upsertCustomer.
       throw new Error('unexpected findOne target');
     },
 
@@ -363,6 +374,56 @@ describe('PublicBookingService.create', () => {
       ]);
     });
 
+    it('stores the requested instant on the booking', async () => {
+      const { service, db } = buildHarness();
+
+      await service.create('acme', buildDto());
+
+      expect(db.savedBookings[0].startsAt).toEqual(
+        new Date('2026-09-01T09:00:00.000Z'),
+      );
+    });
+
+    // The working agreements forbid leaking request internals through /public;
+    // metadata is the field that would carry them if anyone got careless.
+    it('stores empty metadata, never the request', async () => {
+      const { service, db } = buildHarness();
+
+      await service.create('acme', buildDto());
+
+      expect(db.savedBookings[0].metadata).toEqual({});
+    });
+
+    it('passes the guest notes through to the booking', async () => {
+      const { service, db } = buildHarness();
+
+      await service.create('acme', buildDto({ notes: 'Please call ahead' }));
+
+      expect(db.savedBookings[0].notes).toBe('Please call ahead');
+    });
+
+    it('records the created event with no actor', async () => {
+      const { service, db } = buildHarness();
+
+      await service.create('acme', buildDto());
+
+      expect(db.savedEvents[0].actorUserId).toBeNull();
+    });
+
+    it('names the resource it booked, not the first candidate', async () => {
+      const { service } = buildHarness({
+        capable: [
+          buildResource({ id: 'r-1', name: 'Alice' }),
+          buildResource({ id: 'r-2', name: 'Bella' }),
+        ],
+        free: ['r-2'],
+      });
+
+      const result = await service.create('acme', buildDto());
+
+      expect(result.resourceName).toBe('Bella');
+    });
+
     it('leaves created_by_user_id null', async () => {
       const { service, db } = buildHarness();
 
@@ -448,6 +509,39 @@ describe('PublicBookingService.create', () => {
       await service.create('acme', buildDto());
 
       expect(timeline).toEqual(['lock:r-1:pessimistic_write', 'check:r-1']);
+    });
+
+    it('locks every candidate before checking any of them', async () => {
+      const { service, timeline } = buildHarness({
+        capable: [
+          buildResource({ id: 'r-1', name: 'Alice' }),
+          buildResource({ id: 'r-2', name: 'Bella' }),
+        ],
+        free: ['r-2'],
+      });
+
+      await service.create('acme', buildDto());
+
+      expect(timeline).toEqual([
+        'lock:r-1,r-2:pessimistic_write',
+        'check:r-1',
+        'check:r-2',
+      ]);
+    });
+
+    // Preference reorders the candidates; it must not reorder the locks, or two
+    // guests with opposite preferences deadlock each other.
+    it('acquires locks in id order even when preference reorders candidates', async () => {
+      const { service, timeline } = buildHarness({
+        capable: [
+          buildResource({ id: 'r-1', name: 'Alice' }),
+          buildResource({ id: 'r-2', name: 'Bella' }),
+        ],
+      });
+
+      await service.create('acme', buildDto({ resourceId: 'r-2' }));
+
+      expect(timeline).toEqual(['lock:r-1,r-2:pessimistic_write', 'check:r-2']);
     });
 
     it('re-checks on the transaction manager, never a pooled connection', async () => {
@@ -574,6 +668,23 @@ describe('PublicBookingService.create', () => {
       expect(db.bookedResources).toEqual([
         { bookingId: 'booking-1', resourceId: 'r-2' },
       ]);
+    });
+
+    it('re-checks against the service it resolved', async () => {
+      const { service, db, checks } = buildHarness();
+
+      await service.create('acme', buildDto());
+
+      expect(checks[0].search.service).toBe(db.services[0]);
+    });
+
+    it('re-checks with a current notBefore, so a past instant cannot pass', async () => {
+      const before = Date.now();
+      const { service, checks } = buildHarness();
+
+      await service.create('acme', buildDto());
+
+      expect(checks[0].search.now).toBeGreaterThanOrEqual(before);
     });
 
     it('falls back to the UTC date when the organization timezone is junk', async () => {
