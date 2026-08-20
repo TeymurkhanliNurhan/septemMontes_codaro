@@ -383,6 +383,10 @@
         <div class="meta" id="user-meta">Loading…</div>
       </div>
       <div class="meta">
+        <nav style="display:flex;gap:0.75rem;align-items:center">
+          <a href="/resources.html" aria-current="page" style="color:var(--moss);font-weight:600;text-decoration:underline;text-underline-offset:0.25rem">Resources</a>
+          <a href="/services.html" style="color:var(--moss);font-weight:600;text-decoration:none">Services</a>
+        </nav>
         <a href="/signin.html">Sign in</a>
         <button type="button" class="secondary" id="logout-btn">Log out</button>
       </div>
@@ -473,7 +477,10 @@
           <dl class="detail-grid" id="detail-content"></dl>
         </div>
         <div class="tab-panel" id="tab-services" hidden>
-          <div class="placeholder">Services — coming soon</div>
+          <div class="placeholder">
+            Manage bookable services and attach this resource from the
+            <a href="/services.html">Services</a> page.
+          </div>
         </div>
         <div class="tab-panel" id="tab-availability" hidden>
           <div class="section-head">
