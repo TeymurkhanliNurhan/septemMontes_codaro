@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DatePager from '$lib/components/DatePager.svelte';
+	import BookingForm from '$lib/components/BookingForm.svelte';
 	import ResourcePicker from '$lib/components/ResourcePicker.svelte';
 	import SlotGrid from '$lib/components/SlotGrid.svelte';
 	import { api, ApiError } from '$lib/api/client';
@@ -80,6 +81,15 @@
 	function pickSlot(slot: PublicSlot): void {
 		selectedSlot = slot;
 	}
+
+	/**
+	 * The 409 path: clear the stale selection, then refresh the grid so the
+	 * consumer sees the taken slot disappear and can pick another one.
+	 */
+	async function handleConflict(): Promise<void> {
+		selectedSlot = undefined;
+		await reloadSlots();
+	}
 </script>
 
 <h1 class="mb-2 text-2xl font-bold">{service.name}</h1>
@@ -122,5 +132,12 @@
 
 {#if selectedSlot}
 	<div class="divider"></div>
-	<!-- Task 16: the confirm form appears here once a slot is selected. -->
+	<BookingForm
+		{slug}
+		serviceId={service.id}
+		slot={selectedSlot}
+		resourceId={selectedResourceId}
+		{zone}
+		onconflict={handleConflict}
+	/>
 {/if}

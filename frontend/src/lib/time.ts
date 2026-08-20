@@ -27,6 +27,17 @@ export function formatInZone(instant: string, zone: string): string {
 	}).format(new Date(instant));
 }
 
+/** Renders a UTC instant as `Thu 24 Aug 2026` in the given IANA zone. */
+export function formatDateInZone(instant: string, zone: string): string {
+	return new Intl.DateTimeFormat('en-GB', {
+		timeZone: zone,
+		weekday: 'short',
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric'
+	}).format(new Date(instant));
+}
+
 /** Minimal shape shared by every slot the API returns. */
 export interface SlotLike {
 	startsAt: string;

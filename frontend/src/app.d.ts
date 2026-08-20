@@ -1,3 +1,5 @@
+import type { PublicBookingResponse } from '$lib/api/schemas';
+
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
 declare global {
@@ -5,7 +7,10 @@ declare global {
 		// interface Error {}
 		// interface Locals {}
 		// interface PageData {}
-		// interface PageState {}
+		interface PageState {
+			booking?: PublicBookingResponse;
+			zone?: string;
+		}
 		// interface Platform {}
 	}
 }

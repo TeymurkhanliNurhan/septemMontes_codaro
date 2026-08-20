@@ -8,13 +8,8 @@ export const load: PageLoad = async ({ fetch, params }) => {
 		// The API has no single-service GET — the five public routes are the
 		// org, the list, resources, slots, and booking creation. Derive the
 		// service from the list and 404 an id that is not on it.
-		const services = await api<PublicService[]>(
-			fetch,
-			`/public/orgs/${params.slug}/services`
-		);
-		const service = services.find(
-			(candidate) => candidate.id === params.serviceId
-		);
+		const services = await api<PublicService[]>(fetch, `/public/orgs/${params.slug}/services`);
+		const service = services.find((candidate) => candidate.id === params.serviceId);
 		if (!service) {
 			error(404, 'That service could not be found');
 		}
