@@ -287,10 +287,9 @@
             return;
           }
 
-          localStorage.setItem('accessToken', loginData.accessToken);
-          localStorage.setItem('user', JSON.stringify(loginData.user));
+          localStorage.setItem('user', JSON.stringify(loginData));
           message.className = 'message success';
-          message.textContent = `Welcome, ${loginData.user.name}. Redirecting…`;
+          message.textContent = `Welcome, ${loginData.name}. Redirecting…`;
           window.location.href = '/resources.html';
         } catch (error) {
           message.className = 'message error';

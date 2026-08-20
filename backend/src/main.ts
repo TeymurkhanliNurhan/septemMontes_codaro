@@ -12,6 +12,7 @@ import {
 } from './auth/config/session.config';
 import { AppLogger } from './common/logger/app-logger.service';
 import { getLogDirectory } from './common/logger/winston.config';
+import { resolveTrustProxy } from './common/utils/trust-proxy';
 
 const DEFAULT_DEV_ORIGINS = [
   'http://localhost:5173',
@@ -32,6 +33,10 @@ async function bootstrap() {
   logger.setContext('Bootstrap');
   app.useLogger(logger);
 
+  app.set(
+    'trust proxy',
+    resolveTrustProxy(configService.get<string>('TRUST_PROXY')),
+  );
   app.use(cookieParser());
   app.useStaticAssets(join(__dirname, '..', 'public'));
 
@@ -68,16 +73,6 @@ async function bootstrap() {
         'REST API for organizations, resources, availability, and bookings',
       )
       .setVersion('1.0')
-      .addBearerAuth(
-        {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-          description:
-            'Paste accessToken from POST /auth/login into Authorize.',
-        },
-        'JWT-auth',
-      )
       .addCookieAuth(
         session.cookieName,
         {
@@ -86,14 +81,13 @@ async function bootstrap() {
           name: session.cookieName,
           description:
             'Set automatically by POST /auth/login. Swagger is same-origin, ' +
-            'so "Try it out" also works via cookie after login.',
+            'so "Try it out" works once you have logged in.',
         },
         'session',
       )
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
-    document.security = [{ 'JWT-auth': [] }, { session: [] }];
     SwaggerModule.setup('api', app, document, {
       swaggerOptions: {
         persistAuthorization: true,

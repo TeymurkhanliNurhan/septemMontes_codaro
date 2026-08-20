@@ -10,7 +10,6 @@ import {
   Res,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiBody,
   ApiCookieAuth,
   ApiOperation,
@@ -27,7 +26,6 @@ import { LOGIN_RATE_LIMIT } from './auth.constants';
 import { Client } from './decorators/client.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
-import { AuthResponseDto } from './dto/auth-response.dto';
 import { AuthUserDto } from './dto/auth-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -38,7 +36,6 @@ import type { ClientInfo } from './types/client-info';
 
 @ApiTags('Auth')
 @ApiCookieAuth('session')
-@ApiBearerAuth('JWT-auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -50,24 +47,18 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ login: LOGIN_RATE_LIMIT })
-  @ApiOperation({
-    summary:
-      'Log in — returns JWT accessToken and sets an httpOnly session cookie',
-  })
-  @ApiResponse({ status: HttpStatus.OK, type: AuthResponseDto })
+  @ApiOperation({ summary: 'Log in and receive an httpOnly session cookie' })
+  @ApiResponse({ status: HttpStatus.OK, type: AuthUserDto })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED })
   @ApiResponse({ status: HttpStatus.CONFLICT })
   async login(
     @Body() dto: LoginDto,
     @Client() client: ClientInfo,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<AuthResponseDto> {
-    const { user, session, accessToken } = await this.authService.login(
-      dto,
-      client,
-    );
+  ): Promise<AuthUserDto> {
+    const { user, session } = await this.authService.login(dto, client);
     this.cookies.write(response, session);
-    return { accessToken, user };
+    return user;
   }
 
   @Public()

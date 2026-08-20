@@ -731,19 +731,16 @@
       }
 
       async function api(path, options = {}) {
-        const accessToken = localStorage.getItem('accessToken');
         const response = await fetch(path, {
           ...options,
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
             ...(options.headers || {}),
           },
         });
 
         if (response.status === 401) {
-          localStorage.removeItem('accessToken');
           localStorage.removeItem('user');
           window.location.href = '/signin.html';
           throw new Error('Session expired');
@@ -1409,7 +1406,6 @@
         } catch {
           /* ignore network errors on logout */
         }
-        localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
         window.location.href = '/signin.html';
       });

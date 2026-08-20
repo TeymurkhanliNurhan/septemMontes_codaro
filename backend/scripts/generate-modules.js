@@ -555,9 +555,8 @@ export class ${P}Service {
   fs.writeFileSync(
     path.join(base, `${m.name}.controller.ts`),
     `import { Body, Controller, Delete, Get, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
@@ -568,8 +567,8 @@ import { ${P}ResponseDto } from './dto/${dtoSn}-response.dto';
 
 @ApiTags('${m.tag}')
 @Controller('${m.route}')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth('JWT-auth')
+@UseGuards(RolesGuard)
+@ApiCookieAuth('session')
 export class ${P}Controller {
   constructor(private readonly ${c}Service: ${P}Service) {}
 
@@ -716,8 +715,7 @@ export class ${P}Service {
   fs.writeFileSync(
     path.join(base, `${j.name}.controller.ts`),
     `import { Body, Controller, Delete, Get, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiCookieAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
@@ -726,8 +724,8 @@ import { Create${P}Dto } from './dto/create-${sn}.dto';
 
 @ApiTags('${j.tag}')
 @Controller('${j.route}')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth('JWT-auth')
+@UseGuards(RolesGuard)
+@ApiCookieAuth('session')
 export class ${P}Controller {
   constructor(private readonly service: ${P}Service) {}
 

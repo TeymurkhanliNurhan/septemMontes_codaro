@@ -14,7 +14,6 @@ import { AmbiguousAccountException } from './exceptions/ambiguous-account.except
 import { InvalidCredentialsException } from './exceptions/invalid-credentials.exception';
 import { SessionNotFoundException } from './exceptions/session-not-found.exception';
 import { PasswordService } from './services/password.service';
-import { AccessTokenService } from './services/access-token.service';
 import { SessionService } from './services/session.service';
 import { ClientInfo } from './types/client-info';
 import { IssuedSession } from './types/session-tokens';
@@ -22,7 +21,6 @@ import { IssuedSession } from './types/session-tokens';
 export interface LoginResult {
   user: AuthUserDto;
   session: IssuedSession;
-  accessToken: string;
 }
 
 @Injectable()
@@ -31,7 +29,6 @@ export class AuthService {
     private readonly users: UserService,
     private readonly sessions: SessionService,
     private readonly passwords: PasswordService,
-    private readonly accessTokens: AccessTokenService,
     private readonly organizations: OrganizationService,
     private readonly logger: AppLogger,
   ) {
@@ -65,7 +62,6 @@ export class AuthService {
 
     const [user] = matches;
     const session = await this.sessions.issue(user.id, client);
-    const accessToken = await this.accessTokens.sign(user, session.id);
 
     this.logger.log(
       `User signed in: ${user.email} (role=${user.role}, id=${user.id})`,
@@ -74,7 +70,6 @@ export class AuthService {
     return {
       user: AuthUserDto.fromEntity(user),
       session,
-      accessToken,
     };
   }
 

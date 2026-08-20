@@ -3,14 +3,12 @@ import { Reflector } from '@nestjs/core';
 import { Response } from 'express';
 import { AuthUser } from '../../common/types/authenticated-request';
 import { User } from '../../user/entities/user.entity';
-import { UserService } from '../../user/user.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { Session } from '../entities/session.entity';
 import {
   InvalidSessionException,
   MissingSessionException,
 } from '../exceptions/unauthenticated.exception';
-import { AccessTokenService } from '../services/access-token.service';
 import { SessionCookieService } from '../services/session-cookie.service';
 import {
   ResolvedSession,
@@ -24,8 +22,6 @@ export class SessionAuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly sessions: SessionService,
     private readonly cookies: SessionCookieService,
-    private readonly accessTokens: AccessTokenService,
-    private readonly users: UserService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -36,41 +32,20 @@ export class SessionAuthGuard implements CanActivate {
     const http = context.switchToHttp();
     const request = http.getRequest<SessionRequest>();
 
-    const cookieToken = this.cookies.read(request);
-    if (cookieToken) {
-      const resolved = await this.sessions.resolve(cookieToken);
-      if (!resolved) {
-        throw new InvalidSessionException();
-      }
-      request.user = toAuthUser(resolved.user, resolved.session);
-      this.refreshCookie(http.getResponse<Response>(), cookieToken, resolved);
-      return true;
+    const token = this.cookies.read(request);
+    if (!token) {
+      throw new MissingSessionException();
     }
 
-    const bearer = readBearer(request.headers.authorization);
-    if (bearer) {
-      try {
-        const payload = await this.accessTokens.verify(bearer);
-        const user = await this.users.findByIdWithPassword(payload.userId);
-        if (!user) {
-          throw new InvalidSessionException();
-        }
-        request.user = {
-          id: user.id,
-          userId: user.id,
-          organizationId: user.organizationId,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          sessionId: payload.sessionId,
-        };
-        return true;
-      } catch {
-        throw new InvalidSessionException();
-      }
+    const resolved = await this.sessions.resolve(token);
+    if (!resolved) {
+      throw new InvalidSessionException();
     }
 
-    throw new MissingSessionException();
+    request.user = toAuthUser(resolved.user, resolved.session);
+    this.refreshCookie(http.getResponse<Response>(), token, resolved);
+
+    return true;
   }
 
   private isPublic(context: ExecutionContext): boolean {
@@ -94,17 +69,6 @@ export class SessionAuthGuard implements CanActivate {
       });
     }
   }
-}
-
-function readBearer(header?: string): string | null {
-  if (!header) {
-    return null;
-  }
-  const [scheme, token] = header.split(' ');
-  if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) {
-    return null;
-  }
-  return token;
 }
 
 function toAuthUser(user: User, session: Session): AuthUser {
