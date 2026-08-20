@@ -20,6 +20,24 @@
 		currency: 'PLN',
 		maximumFractionDigits: 0
 	});
+
+	let video = $state<HTMLVideoElement | undefined>();
+	let blocked = $state(false);
+
+	// Start it unmuted at full volume. If the browser vetoes that, retry muted so
+	// something plays, and let the caption tell them why it is silent.
+	$effect(() => {
+		const el = video;
+		if (!el) return;
+
+		el.muted = false;
+		el.volume = 1;
+		el.play().catch(() => {
+			el.muted = true;
+			blocked = true;
+			el.play().catch(() => {});
+		});
+	});
 </script>
 
 <div class="mx-auto max-w-3xl">
@@ -39,28 +57,37 @@
 		</p>
 
 		<!--
-			Deliberately not autoplaying, and deliberately not muted. A page someone
-			reaches an hour after arranging their mother's funeral must not start
-			making noise at them on arrival — but the sound is the point of this
-			clip, so it plays unmuted the moment they choose to press it. Browsers
-			would block autoplay-with-audio here anyway; this way the behaviour is a
-			decision rather than a browser's veto.
+			The sound is the point of this clip, so it plays by itself, unmuted, at
+			full volume. Browsers only permit that with user activation, and here we
+			have it: this page is reached by a client-side navigation from the button
+			that confirmed the booking, so the document keeps the activation from that
+			click. If the browser refuses anyway — someone deep-links, or an OS-level
+			autoplay setting is stricter — we fall back to muted playback and say so,
+			rather than leaving a still frame and no explanation.
 
-			`preload="metadata"` because the file is 26 MB: enough to draw the
-			scrubber, not enough to pull the whole thing down for someone who never
-			presses play.
+			`preload="metadata"` still, because the file is 26 MB: we do not pull the
+			whole thing down for every family who lands here. Playback starts on its
+			own either way — there is just a beat of buffering first.
 		-->
 		<figure class="mt-10">
 			<video
+				bind:this={video}
 				class="w-full border border-base-300"
 				src="/farewell.mp4"
 				controls
+				autoplay
 				playsinline
 				preload="metadata"
 			>
 				<track kind="captions" />
 			</video>
-			<figcaption class="hairline pb-3 text-xs opacity-45">One more thing. Sound on.</figcaption>
+			<figcaption class="hairline pb-3 text-xs opacity-45">
+				{#if blocked}
+					One more thing. Your browser held the sound back — press unmute.
+				{:else}
+					One more thing. Sound on.
+				{/if}
+			</figcaption>
 		</figure>
 
 		<div class="hairline mt-10 pb-3">
