@@ -2,10 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AvailabilityException } from '../availability-exception/entities/availability-exception.entity';
 import { AvailabilityRule } from '../availability-rule/entities/availability-rule.entity';
-import { Booking } from '../booking/entities/booking.entity';
-import { BookingEvent } from '../booking-event/entities/booking-event.entity';
 import { BookingResource } from '../booking-resource/entities/booking-resource.entity';
-import { Customer } from '../customer/entities/customer.entity';
 import { Organization } from '../organization/entities/organization.entity';
 import { Resource } from '../resource/entities/resource.entity';
 import { Service } from '../service/entities/service.entity';
@@ -16,6 +13,14 @@ import { PublicBookingController } from './public-booking.controller';
 
 @Module({
   imports: [
+    // Only entities actually reached via @InjectRepository in this module.
+    // PublicBookingService writes Booking, BookingEvent and Customer rows
+    // too, but it does so entirely through DataSource.transaction's
+    // EntityManager (see its constructor: `(availability, dataSource)`, no
+    // repositories) -- that manager resolves against the app-wide entity
+    // list from TypeOrmModule.forRootAsync in app.module.ts, not against
+    // this module's forFeature. Registering those three here would imply an
+    // injectable repository that doesn't exist; leave them out.
     TypeOrmModule.forFeature([
       Organization,
       Service,
@@ -23,10 +28,7 @@ import { PublicBookingController } from './public-booking.controller';
       ServiceResource,
       AvailabilityRule,
       AvailabilityException,
-      Booking,
       BookingResource,
-      BookingEvent,
-      Customer,
     ]),
   ],
   controllers: [PublicBookingController],
