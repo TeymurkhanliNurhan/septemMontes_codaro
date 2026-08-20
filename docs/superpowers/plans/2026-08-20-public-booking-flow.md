@@ -2242,6 +2242,13 @@ lock precedes the check. A unit test cannot open two real transactions. Proving 
 needs two genuinely concurrent `create` calls against Postgres, which belongs in
 Task 9's live walk.
 
+**Resolved in Task 9's live walk (2026-08-20).** Two simultaneous POSTs at one
+Haircut slot with the same explicit `resourceId` (singleton candidate list, so
+both transactions contend on one row lock) returned exactly one 201 and one 409,
+left exactly one `booking_resources` row, and produced no 40P01 and no 500 in the
+server log. This is the demonstration the static fake could not provide: the
+loser's re-check ran after the winner committed and *saw* the booking.
+
 **The fake transaction cannot roll back.** It invokes the callback directly, so
 "writes no booking when the slot was just taken" passes only because that throw
 precedes the first write. Rollback safety currently holds by construction — the

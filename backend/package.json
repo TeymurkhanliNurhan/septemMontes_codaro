@@ -22,7 +22,8 @@
     "migration:create": "ts-node ./node_modules/typeorm/cli.js migration:create ./src/migrations/NewMigration",
     "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run -d ./ormconfig.ts",
     "migration:revert": "ts-node ./node_modules/typeorm/cli.js migration:revert -d ./ormconfig.ts",
-    "auth:set-password": "ts-node ./scripts/set-password.ts"
+    "auth:set-password": "ts-node ./scripts/set-password.ts",
+    "seed:demo": "ts-node ./scripts/seed-demo.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
