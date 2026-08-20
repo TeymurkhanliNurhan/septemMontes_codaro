@@ -1555,6 +1555,32 @@ Nothing so far has proved the engine works against real rows.
 
 **Files:**
 - Create: `backend/scripts/seed-demo.ts`
+- Create: `backend/src/migrations/20260821120000-ResourceOrganizationCheck.ts`
+
+- [ ] **Step 0: Close the duplicate-organization-column hole**
+
+`resources` carries **both** `organization_id` and `organizations_id` as NOT NULL
+foreign keys to `organizations`, with nothing forcing them equal:
+
+```
+"fk_resources_organization"  FOREIGN KEY (organization_id)  REFERENCES organizations(id) ON DELETE CASCADE
+"resources_organizations"    FOREIGN KEY (organizations_id) REFERENCES organizations(id)
+```
+
+The public booking service scopes its tenant check on `organization_id`, so a row
+where the two disagree is a second door on the tenant boundary. Nothing has
+diverged yet — the table is empty — which is exactly why the constraint is cheap
+to add now:
+
+```sql
+ALTER TABLE resources DROP CONSTRAINT IF EXISTS chk_resources_organization_match;
+ALTER TABLE resources ADD CONSTRAINT chk_resources_organization_match
+  CHECK (organization_id = organizations_id);
+```
+
+Dropping the redundant column would be cleaner, but it exists in the source ERD
+and the staff-side code writes it, so the constraint is the contained fix. The
+seed script below must set both columns to the same value.
 
 - [ ] **Step 1: Write a seed script**
 
