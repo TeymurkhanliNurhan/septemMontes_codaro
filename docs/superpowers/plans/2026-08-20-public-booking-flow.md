@@ -2216,6 +2216,25 @@ precedes the first write. Rollback safety currently holds by construction — th
 file has zero `try`/`catch`, so every throw propagates out of
 `dataSource.transaction` — but it is verified by reading, not by test.
 
+## The concurrency guarantee is guest-vs-guest only
+
+The resource row is a pure mutex token: `FOR UPDATE` on it does not stop another
+transaction inserting a `booking_resources` row for that resource. The protocol is
+sound only *because* every booking path takes the lock first — and exactly one does.
+
+Verified: `setLock` and `dataSource.transaction` each appear **once** in the whole
+backend, both in `public-booking.service.ts`. The staff-side
+`BookingService.create` (`src/booking/booking.service.ts`) is a bare `repo.save`
+with no transaction, no lock, and **no availability check at all** — it will happily
+write a booking that overlaps an existing one.
+
+So a staff member creating a booking concurrently can double-book a resource a
+guest has just locked, and staff can double-book each other freely. Nothing in the
+public flow makes this worse, and it is out of scope here — but "the booking path
+is safe under concurrency" is easy to over-read, and it is only true of the guest
+path. Closing it means routing staff writes through the same lock-then-re-check
+sequence, which is admin-panel work.
+
 ## Deliberately not built
 
 Carried over from the spec, and out of scope here:
