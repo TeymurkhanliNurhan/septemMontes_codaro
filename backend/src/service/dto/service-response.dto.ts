@@ -64,3 +64,16 @@ export class ServiceLinkedResourceListResponseDto {
   @ApiProperty({ type: [ServiceLinkedResourceDto] })
   data: ServiceLinkedResourceDto[];
 }
+
+export class ServiceResourceResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  serviceId: string;
+
+  @ApiProperty({ format: 'uuid' })
+  resourceId: string;
+}
+
+export class ServiceResourceDataResponseDto {
+  @ApiProperty({ type: ServiceResourceResponseDto })
+  data: ServiceResourceResponseDto;
+}

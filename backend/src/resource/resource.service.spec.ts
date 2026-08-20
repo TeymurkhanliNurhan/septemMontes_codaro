@@ -7,6 +7,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ResourceStatus } from '../common/enums/resource-status.enum';
 import { BookingResource } from '../booking-resource/entities/booking-resource.entity';
+import { ServiceResource } from '../service-resource/entities/service-resource.entity';
 import { Resource } from './entities/resource.entity';
 import { ResourceService } from './resource.service';
 
@@ -47,6 +48,10 @@ describe('ResourceService', () => {
     count: jest.fn(),
   };
 
+  const serviceResourceRepo = {
+    find: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -57,6 +62,10 @@ describe('ResourceService', () => {
         {
           provide: getRepositoryToken(BookingResource),
           useValue: bookingResourceRepo,
+        },
+        {
+          provide: getRepositoryToken(ServiceResource),
+          useValue: serviceResourceRepo,
         },
       ],
     }).compile();

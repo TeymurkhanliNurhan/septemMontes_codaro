@@ -323,6 +323,61 @@ describe('ServiceService', () => {
       expect(repo.delete).not.toHaveBeenCalled();
     });
 
+    it('OWNER can attach resource', async () => {
+      repo.findOne.mockResolvedValue(makeService());
+      resourceService.findResourceForOrganization.mockResolvedValue(
+        makeResource(),
+      );
+      serviceResourceRepo.findOne.mockResolvedValue(null);
+      serviceResourceRepo.create.mockImplementation((value) => value);
+      serviceResourceRepo.save.mockResolvedValue({ serviceId, resourceId });
+
+      const result = await service.attachResource(serviceId, resourceId, orgA);
+
+      expect(result).toEqual({ serviceId, resourceId });
+      expect(serviceResourceRepo.save).toHaveBeenCalled();
+    });
+
+    it('rejects cross-organization attach', async () => {
+      repo.findOne.mockResolvedValue(makeService());
+      resourceService.findResourceForOrganization.mockRejectedValue(
+        new NotFoundException(`Resource ${resourceId} not found`),
+      );
+
+      await expect(
+        service.attachResource(serviceId, resourceId, orgA),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns conflict for duplicate attach', async () => {
+      repo.findOne.mockResolvedValue(makeService());
+      resourceService.findResourceForOrganization.mockResolvedValue(
+        makeResource(),
+      );
+      serviceResourceRepo.findOne.mockResolvedValue({ serviceId, resourceId });
+
+      await expect(
+        service.attachResource(serviceId, resourceId, orgA),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('OWNER can detach resource without deleting the resource', async () => {
+      repo.findOne.mockResolvedValue(makeService());
+      resourceService.findResourceForOrganization.mockResolvedValue(
+        makeResource(),
+      );
+      serviceResourceRepo.findOne.mockResolvedValue({ serviceId, resourceId });
+      serviceResourceRepo.delete.mockResolvedValue({ affected: 1 });
+
+      await service.detachResource(serviceId, resourceId, orgA);
+
+      expect(serviceResourceRepo.delete).toHaveBeenCalledWith({
+        serviceId,
+        resourceId,
+      });
+      expect(repo.delete).not.toHaveBeenCalled();
+    });
+
     it('lists only linked resources for the organization', async () => {
       repo.findOne.mockResolvedValue(makeService());
       serviceResourceRepo.find.mockResolvedValue([
@@ -330,6 +385,15 @@ describe('ServiceService', () => {
           serviceId,
           resourceId,
           resource: makeResource(),
+        },
+        {
+          serviceId,
+          resourceId: resourceId2,
+          resource: makeResource({
+            id: resourceId2,
+            organizationId: orgB,
+            name: 'Doctor Other Org',
+          }),
         },
       ]);
 

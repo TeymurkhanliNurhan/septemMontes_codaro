@@ -31,6 +31,7 @@ import { UpdateResourceDto } from './dto/update-resource.dto';
 import { ResourceListQueryDto } from './dto/resource-list-query.dto';
 import {
   ResourceDataResponseDto,
+  ResourceLinkedServiceListResponseDto,
   ResourceListResponseDto,
 } from './dto/resource-response.dto';
 
@@ -102,6 +103,25 @@ export class ResourceController {
     @Query() query: ResourceListQueryDto,
   ): Promise<ResourceListResponseDto> {
     return this.resourceService.findAll(this.getOrganizationId(req), query);
+  }
+
+  @Get(':id/services')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
+  @ApiOperation({
+    summary: 'List services that can use this resource',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    format: 'uuid',
+    description: 'Resource UUID',
+  })
+  @ApiResponse({ status: 200, type: ResourceLinkedServiceListResponseDto })
+  listServices(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ResourceLinkedServiceListResponseDto> {
+    return this.resourceService.listServices(id, this.getOrganizationId(req));
   }
 
   @Get(':id')

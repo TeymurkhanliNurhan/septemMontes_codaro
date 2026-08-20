@@ -8,11 +8,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ResourceStatus } from '../common/enums/resource-status.enum';
 import { BookingResource } from '../booking-resource/entities/booking-resource.entity';
+import { ServiceResource } from '../service-resource/entities/service-resource.entity';
 import { Resource } from './entities/resource.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
 import { ResourceListQueryDto } from './dto/resource-list-query.dto';
 import {
+  ResourceLinkedServiceDto,
+  ResourceLinkedServiceListResponseDto,
   ResourceListResponseDto,
   ResourceResponseDto,
 } from './dto/resource-response.dto';
@@ -24,6 +27,8 @@ export class ResourceService {
     private readonly repo: Repository<Resource>,
     @InjectRepository(BookingResource)
     private readonly bookingResourceRepo: Repository<BookingResource>,
+    @InjectRepository(ServiceResource)
+    private readonly serviceResourceRepo: Repository<ServiceResource>,
   ) {}
 
   async findAll(
@@ -136,6 +141,30 @@ export class ResourceService {
     }
 
     await this.repo.delete(entity.id);
+  }
+
+  async listServices(
+    resourceId: string,
+    organizationId: string,
+  ): Promise<ResourceLinkedServiceListResponseDto> {
+    await this.findResourceForOrganization(resourceId, organizationId);
+
+    const links = await this.serviceResourceRepo.find({
+      where: { resourceId },
+      relations: { service: true },
+    });
+
+    const data: ResourceLinkedServiceDto[] = links
+      .filter((link) => link.service?.organizationId === organizationId)
+      .map((link) => ({
+        id: link.service.id,
+        name: link.service.name,
+        durationMinutes: link.service.durationMinutes,
+        isActive: link.service.isActive,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return { data };
   }
 
   /**

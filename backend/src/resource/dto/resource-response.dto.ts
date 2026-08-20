@@ -50,3 +50,22 @@ export class ResourceDataResponseDto {
   @ApiProperty({ type: ResourceResponseDto })
   data: ResourceResponseDto;
 }
+
+export class ResourceLinkedServiceDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty({ example: '60 Minute Consultation' })
+  name: string;
+
+  @ApiProperty({ example: 60 })
+  durationMinutes: number;
+
+  @ApiProperty({ example: true })
+  isActive: boolean;
+}
+
+export class ResourceLinkedServiceListResponseDto {
+  @ApiProperty({ type: [ResourceLinkedServiceDto] })
+  data: ResourceLinkedServiceDto[];
+}

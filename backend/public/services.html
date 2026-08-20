@@ -413,6 +413,7 @@
         <nav>
           <a href="/resources.html">Resources</a>
           <a href="/services.html" aria-current="page">Services</a>
+          <a href="/bookings.html">Bookings</a>
         </nav>
         <a href="/signin.html">Sign in</a>
         <button type="button" class="secondary" id="logout-btn">Log out</button>
@@ -875,7 +876,7 @@
 
         try {
           const result = await api(
-            `/services?id=${serviceId}&include=resources`,
+            `/services/${serviceId}/resources`,
           );
           state.linkedResources = result.data || [];
 
@@ -1025,15 +1026,10 @@
         els.attachMessage.textContent = '';
 
         try {
-          const nextIds = [
-            ...state.linkedResources.map((item) => item.id),
-            selected.value,
-          ];
-          await api('/services', {
-            method: 'PATCH',
+          await api(`/services/${state.detailServiceId}/resources`, {
+            method: 'POST',
             body: JSON.stringify({
-              id: state.detailServiceId,
-              resourceIds: nextIds,
+              resourceId: selected.value,
             }),
           });
           showToast('Resource attached.', 'success');
@@ -1094,16 +1090,10 @@
         if (!window.confirm('Detach this resource from the service?')) return;
 
         try {
-          const nextIds = state.linkedResources
-            .map((item) => item.id)
-            .filter((resourceId) => resourceId !== button.dataset.id);
-          await api('/services', {
-            method: 'PATCH',
-            body: JSON.stringify({
-              id: state.detailServiceId,
-              resourceIds: nextIds,
-            }),
-          });
+          await api(
+            `/services/${state.detailServiceId}/resources/${button.dataset.id}`,
+            { method: 'DELETE' },
+          );
           showToast('Resource detached.', 'success');
           await loadLinkedResources(state.detailServiceId);
         } catch (error) {

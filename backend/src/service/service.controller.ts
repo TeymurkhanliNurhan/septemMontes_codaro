@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -15,6 +16,7 @@ import {
   ApiBody,
   ApiCookieAuth,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
@@ -22,12 +24,14 @@ import {
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import type { AuthenticatedRequest } from '../common/types/authenticated-request';
+import { AttachResourceToServiceDto } from './dto/attach-resource-to-service.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { ServiceQueryDto } from './dto/service-query.dto';
 import {
   ServiceDataResponseDto,
   ServiceLinkedResourceListResponseDto,
   ServiceListResponseDto,
+  ServiceResourceDataResponseDto,
 } from './dto/service-response.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServiceService } from './service.service';
@@ -180,5 +184,64 @@ export class ServiceController {
     @Query('id', ParseUUIDPipe) id: string,
   ): Promise<void> {
     return this.serviceService.remove(id, this.getOrganizationId(req));
+  }
+
+  @Get(':serviceId/resources')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
+  @ApiOperation({
+    summary: 'List resources linked to a service in the current organization',
+  })
+  @ApiParam({ name: 'serviceId', type: String, format: 'uuid' })
+  @ApiResponse({ status: 200, type: ServiceLinkedResourceListResponseDto })
+  listResources(
+    @Req() req: AuthenticatedRequest,
+    @Param('serviceId', ParseUUIDPipe) serviceId: string,
+  ): Promise<ServiceLinkedResourceListResponseDto> {
+    return this.serviceService.listResources(
+      serviceId,
+      this.getOrganizationId(req),
+    );
+  }
+
+  @Post(':serviceId/resources')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Attach a resource to a service' })
+  @ApiParam({ name: 'serviceId', type: String, format: 'uuid' })
+  @ApiBody({ type: AttachResourceToServiceDto })
+  @ApiResponse({ status: 201, type: ServiceResourceDataResponseDto })
+  @ApiResponse({ status: 409, description: 'Relationship already exists' })
+  async attachResource(
+    @Req() req: AuthenticatedRequest,
+    @Param('serviceId', ParseUUIDPipe) serviceId: string,
+    @Body() dto: AttachResourceToServiceDto,
+  ): Promise<ServiceResourceDataResponseDto> {
+    const data = await this.serviceService.attachResource(
+      serviceId,
+      dto.resourceId,
+      this.getOrganizationId(req),
+    );
+    return { data };
+  }
+
+  @Delete(':serviceId/resources/:resourceId')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Detach a resource from a service (does not delete the resource)',
+  })
+  @ApiParam({ name: 'serviceId', type: String, format: 'uuid' })
+  @ApiParam({ name: 'resourceId', type: String, format: 'uuid' })
+  @ApiResponse({ status: 204 })
+  detachResource(
+    @Req() req: AuthenticatedRequest,
+    @Param('serviceId', ParseUUIDPipe) serviceId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
+  ): Promise<void> {
+    return this.serviceService.detachResource(
+      serviceId,
+      resourceId,
+      this.getOrganizationId(req),
+    );
   }
 }

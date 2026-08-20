@@ -187,7 +187,6 @@ export class ServiceService {
     const links = await this.serviceResourceRepo.find({
       where: { serviceId },
       relations: { resource: true },
-      order: { resourceId: 'ASC' },
     });
 
     const data: ServiceLinkedResourceDto[] = links
@@ -197,9 +196,60 @@ export class ServiceService {
         name: link.resource.name,
         resourceType: link.resource.resourceType,
         status: link.resource.status,
-      }));
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     return { data };
+  }
+
+  async attachResource(
+    serviceId: string,
+    resourceId: string,
+    organizationId: string,
+  ): Promise<{ serviceId: string; resourceId: string }> {
+    await this.findServiceForOrganization(serviceId, organizationId);
+    await this.resourceService.findResourceForOrganization(
+      resourceId,
+      organizationId,
+    );
+
+    const existing = await this.serviceResourceRepo.findOne({
+      where: { serviceId, resourceId },
+    });
+    if (existing) {
+      throw new ConflictException(
+        'Resource is already attached to this service',
+      );
+    }
+
+    await this.serviceResourceRepo.save(
+      this.serviceResourceRepo.create({ serviceId, resourceId }),
+    );
+
+    return { serviceId, resourceId };
+  }
+
+  async detachResource(
+    serviceId: string,
+    resourceId: string,
+    organizationId: string,
+  ): Promise<void> {
+    await this.findServiceForOrganization(serviceId, organizationId);
+    await this.resourceService.findResourceForOrganization(
+      resourceId,
+      organizationId,
+    );
+
+    const existing = await this.serviceResourceRepo.findOne({
+      where: { serviceId, resourceId },
+    });
+    if (!existing) {
+      throw new NotFoundException(
+        'Service-resource relationship not found',
+      );
+    }
+
+    await this.serviceResourceRepo.delete({ serviceId, resourceId });
   }
 
   /**
