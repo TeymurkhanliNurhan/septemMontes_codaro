@@ -10,7 +10,9 @@
 	// The director's console is the home's own screen, not the family's. It
 	// gets the same chrome but says so, so nobody demonstrating this confuses
 	// the two sides of the product.
-	const staff = $derived(page.url.pathname.endsWith('/director'));
+	// Matches the login screen too, which is as much the home's page as the
+	// board behind it and should not wear the family's telephone number.
+	const staff = $derived(page.url.pathname.includes('/director'));
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>

@@ -47,19 +47,31 @@ Open `http://localhost:5173` and begin an arrangement. `VITE_API_URL` (see
 
 ## Routes
 
-| Route                  | Page                                                           |
-| ---------------------- | -------------------------------------------------------------- |
-| `/`                    | What the home is for                                           |
-| `/{slug}`              | Intake — the deceased, the tradition, the coroner, the parties |
-| `/{slug}/arrangements` | The window, its constraints, and the plans that fit inside it  |
-| `/{slug}/confirmed`    | The held arrangement                                           |
-| `/{slug}/director`     | The home's own board: cold storage, cases, third-party slots   |
+| Route                    | Page                                                           |
+| ------------------------ | -------------------------------------------------------------- |
+| `/`                      | What the home is for                                           |
+| `/{slug}`                | Intake — the deceased, the tradition, the coroner, the parties |
+| `/{slug}/arrangements`   | The window, its constraints, and the plans that fit inside it  |
+| `/{slug}/confirmed`      | The held arrangement                                           |
+| `/{slug}/director`       | The home's own board: cold storage, cases, third-party slots   |
+| `/{slug}/director/login` | Staff sign-in                                                  |
 
 The only data the app touches comes from the five unauthenticated routes under
 `/public` — the OpenAPI schema for them is generated into
 `src/lib/api/types.ts`. Confirming a plan is five ordinary `POST`s against the
 same slots it was solved from; there is no bespoke endpoint behind it, and no
 migration was needed to build any of this.
+
+The console is staff-only. It guards itself in the browser rather than on the
+server, because the session is an httpOnly cookie scoped to the API's origin
+and SvelteKit's server-side `fetch` will not forward a cookie across origins —
+so `ssr` is off for that route and the guard calls `GET /auth/me`. Nothing a
+family can reach links to it.
+
+Staff sign-in resolves against the organization named by the backend's
+`DEFAULT_ORG_SLUG`, which must match a row in `organizations.slug` or every
+login answers 404. Give an account a password with
+`npm run auth:set-password -- <email> <password>` in `backend/`.
 
 An arrangement in progress lives in `sessionStorage` and goes with the tab — a
 family fills it in over twenty minutes on the worst day of their life, and

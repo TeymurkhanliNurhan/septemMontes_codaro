@@ -26,12 +26,15 @@ export class ApiError extends Error {
  * `ApiError` whose message is unwrapped from the API's error shape — see
  * `extractMessage`.
  *
- * These routes are unauthenticated by design, so there is deliberately no
- * `credentials: 'include'` here. Add it when the admin panel arrives.
+ * `credentials: 'include'` is on for every call because the staff side of this
+ * app authenticates with an httpOnly session cookie the browser will otherwise
+ * withhold — the API is a different origin from the dev server. The public
+ * booking routes simply ignore the cookie when one is not there.
  */
 export async function api<T>(fetchFn: typeof fetch, path: string, init?: RequestInit): Promise<T> {
 	const response = await fetchFn(`${BASE}${path}`, {
 		...init,
+		credentials: 'include',
 		headers: { 'Content-Type': 'application/json', ...init?.headers }
 	});
 
