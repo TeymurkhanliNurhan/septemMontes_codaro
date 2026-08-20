@@ -24,12 +24,12 @@ Open `http://localhost:5173`, enter `demo` as the organization, and book away.
 
 ## Routes
 
-| Route | Page |
-|-------|------|
-| `/` | Slug entry |
-| `/{slug}` | Organization shell and service list |
-| `/{slug}/{serviceId}` | Resource picker, week pager, slot grid, confirm form |
-| `/{slug}/booking/{id}` | Confirmation |
+| Route                  | Page                                                 |
+| ---------------------- | ---------------------------------------------------- |
+| `/`                    | Slug entry                                           |
+| `/{slug}`              | Organization shell and service list                  |
+| `/{slug}/{serviceId}`  | Resource picker, week pager, slot grid, confirm form |
+| `/{slug}/booking/{id}` | Confirmation                                         |
 
 The only data the app touches comes from the five unauthenticated routes under
 `/public` — the OpenAPI schema for them is generated into
