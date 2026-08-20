@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { LayoutData } from './$types';
 	import type { Snippet } from 'svelte';
 
@@ -7,7 +8,7 @@
 
 <div class="navbar bg-base-200 shadow-sm">
 	<div class="navbar-start">
-		<a href="/" class="btn btn-ghost text-xl">Bookings</a>
+		<a href={resolve('/')} class="btn btn-ghost text-xl">Bookings</a>
 	</div>
 	<div class="navbar-center">
 		<span class="text-lg font-semibold">{data.organization.name}</span>

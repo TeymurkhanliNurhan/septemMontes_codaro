@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import type { Snippet } from 'svelte';
@@ -11,7 +12,7 @@
 <div class="flex min-h-screen flex-col">
 	<header class="navbar bg-base-200 shadow-sm">
 		<div class="navbar-start">
-			<a href="/" class="btn btn-ghost text-xl">Bookings</a>
+			<a href={resolve('/')} class="btn btn-ghost text-xl">Bookings</a>
 		</div>
 		<div class="navbar-end">
 			<span class="badge badge-outline">Guest booking</span>

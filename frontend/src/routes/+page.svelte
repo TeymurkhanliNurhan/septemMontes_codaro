@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	let slug = $state('');
 
@@ -7,7 +8,7 @@
 		event.preventDefault();
 		const trimmed = slug.trim();
 		if (!trimmed) return;
-		goto(`/${trimmed}`);
+		goto(resolve(`/${trimmed}`));
 	}
 </script>
 
@@ -32,7 +33,7 @@
 				<button type="submit" class="btn join-item btn-primary">Go</button>
 			</form>
 			<p class="pt-6 text-sm opacity-60">
-				Try the demo: <a href="/demo" class="link link-primary">/demo</a>
+				Try the demo: <a href={resolve('/demo')} class="link link-primary">/demo</a>
 			</p>
 		</div>
 	</div>

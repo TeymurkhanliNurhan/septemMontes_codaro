@@ -8,7 +8,7 @@
 	import { todayInZone, weekFrom } from '$lib/time';
 	import type { PageData } from './$types';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 
 	const zone = $derived(data.organization.timezone);
 	const slug = $derived(data.organization.slug);
@@ -35,16 +35,21 @@
 
 	/**
 	 * The one fetch path for slots. Task 16's 409 handler calls this too, so a
-	 * taken slot visibly vanishes from the grid without a page reload.
+	 * taken slot visibly vanishes from the grid without a page reload. The
+	 * week and resource are parameters so callers state exactly what they are
+	 * fetching (and the `$effect` below tracks them without bare reads).
 	 */
-	async function reloadSlots(): Promise<void> {
+	async function reloadSlots(week: string, resourceId: string | undefined): Promise<void> {
 		const id = (requestId += 1);
 		loading = true;
 		slotsError = undefined;
 		try {
-			const { from, to } = weekFrom(weekStart);
-			const query = new URLSearchParams({ from, to });
-			if (selectedResourceId) query.set('resourceId', selectedResourceId);
+			const { from, to } = weekFrom(week);
+			// Built from a plain object so no URLSearchParams instance is ever
+			// mutated in place.
+			const params: Record<string, string> = { from, to };
+			if (resourceId) params['resourceId'] = resourceId;
+			const query = new URLSearchParams(params);
 			const result = await api<PublicSlot[]>(
 				fetch,
 				`/public/orgs/${slug}/services/${service.id}/slots?${query}`
@@ -62,15 +67,14 @@
 
 	// Reload whenever the visible week or the resource choice changes.
 	$effect(() => {
-		weekStart;
-		selectedResourceId;
-		void reloadSlots();
+		void reloadSlots(weekStart, selectedResourceId);
 	});
 
 	function moveWeek(days: number): void {
-		const cursor = new Date(`${weekStart}T00:00:00.000Z`);
-		cursor.setUTCDate(cursor.getUTCDate() + days);
-		const next = cursor.toISOString().slice(0, 10);
+		// Pure ms arithmetic keeps the Date instance immutable.
+		const next = new Date(Date.parse(`${weekStart}T00:00:00.000Z`) + days * 86_400_000)
+			.toISOString()
+			.slice(0, 10);
 		if (next > today) {
 			weekStart = next;
 		} else if (next < today) {
@@ -88,7 +92,7 @@
 	 */
 	async function handleConflict(): Promise<void> {
 		selectedSlot = undefined;
-		await reloadSlots();
+		await reloadSlots(weekStart, selectedResourceId);
 	}
 </script>
 

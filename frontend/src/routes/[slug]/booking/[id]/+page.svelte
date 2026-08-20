@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import type { PublicBookingResponse } from '$lib/api/schemas';
 	import { formatDateInZone, formatInZone } from '$lib/time';
@@ -35,6 +36,6 @@
 			Your request went through. The details are only shown on the page you were sent to —
 			refreshing loses them, by design.
 		</p>
-		<a href="/" class="btn btn-primary">Back to the start</a>
+		<a href={resolve('/')} class="btn btn-primary">Back to the start</a>
 	</div>
 {/if}

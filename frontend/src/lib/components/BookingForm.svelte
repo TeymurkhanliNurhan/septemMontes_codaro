@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { api, ApiError } from '$lib/api/client';
 	import type { PublicBookingResponse, PublicSlot } from '$lib/api/schemas';
 	import { formatDateInZone, formatInZone } from '$lib/time';
@@ -48,7 +49,7 @@
 					notes: notes.trim() || undefined
 				})
 			});
-			await goto(`/${slug}/booking/${booking.bookingId}`, {
+			await goto(resolve(`/${slug}/booking/${booking.bookingId}`), {
 				state: { booking, zone }
 			});
 		} catch (cause) {

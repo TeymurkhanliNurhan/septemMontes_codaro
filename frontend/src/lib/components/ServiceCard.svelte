@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PublicService } from '$lib/api/schemas';
 
 	let { service, slug }: { service: PublicService; slug: string } = $props();
@@ -12,7 +13,7 @@
 		{/if}
 		<div class="card-actions items-center justify-between">
 			<span class="badge badge-outline">{service.durationMinutes} min</span>
-			<a href={`/${slug}/${service.id}`} class="btn btn-primary btn-sm"> Book </a>
+			<a href={resolve(`/${slug}/${service.id}`)} class="btn btn-primary btn-sm"> Book </a>
 		</div>
 	</div>
 </div>

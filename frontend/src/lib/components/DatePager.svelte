@@ -23,10 +23,11 @@
 	const canGoBack = $derived(weekStart > today);
 
 	function rangeLabel(): string {
-		const end = new Date(`${weekStart}T00:00:00.000Z`);
-		end.setUTCDate(end.getUTCDate() + 6);
-		const endLabel = DAY_FORMAT.format(end);
-		const startLabel = DAY_FORMAT.format(new Date(`${weekStart}T00:00:00.000Z`));
+		// ISO dates are midnight UTC; pure ms arithmetic keeps the Date
+		// instances immutable.
+		const startMs = Date.parse(`${weekStart}T00:00:00.000Z`);
+		const startLabel = DAY_FORMAT.format(new Date(startMs));
+		const endLabel = DAY_FORMAT.format(new Date(startMs + 6 * 86_400_000));
 		return startLabel === endLabel ? startLabel : `${startLabel} – ${endLabel}`;
 	}
 </script>

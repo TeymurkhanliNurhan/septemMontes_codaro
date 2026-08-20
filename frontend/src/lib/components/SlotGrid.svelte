@@ -25,13 +25,10 @@
 
 	// The seven days of the visible week, in order.
 	const days = $derived.by(() => {
-		const list: string[] = [];
-		const cursor = new Date(`${weekStart}T00:00:00.000Z`);
-		for (let index = 0; index < 7; index += 1) {
-			list.push(cursor.toISOString().slice(0, 10));
-			cursor.setUTCDate(cursor.getUTCDate() + 1);
-		}
-		return list;
+		const startMs = Date.parse(`${weekStart}T00:00:00.000Z`);
+		return Array.from({ length: 7 }, (_, index) =>
+			new Date(startMs + index * 86_400_000).toISOString().slice(0, 10)
+		);
 	});
 
 	const byDay = $derived(groupSlotsByLocalDay(slots, zone));
