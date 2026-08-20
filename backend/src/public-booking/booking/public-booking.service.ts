@@ -244,6 +244,12 @@ export class PublicBookingService {
    * Matches on `(organizationId, lowercased email)`, the same normalisation the
    * auth code applies. A repeat guest keeps one row and the newest details they
    * gave; an omitted phone leaves the stored one alone rather than erasing it.
+   *
+   * The match is `LOWER(email)` rather than an equality against the normalised
+   * literal, because normalisation is only enforced on this side: the staff
+   * `CreateCustomerDto` has no `@IsEmail()` and no `@NormalizeEmail()`, so a
+   * row created in the admin panel as `Ada@Example.com` is stored verbatim. An
+   * equality would miss it and hand a returning guest a duplicate customer row.
    */
   private async upsertCustomer(
     manager: EntityManager,
@@ -252,9 +258,11 @@ export class PublicBookingService {
   ): Promise<Customer> {
     const email = input.email.trim().toLowerCase();
 
-    const existing = await manager.findOne(Customer, {
-      where: { organizationId, email },
-    });
+    const existing = await manager
+      .createQueryBuilder(Customer, 'customer')
+      .where('customer.organization_id = :organizationId', { organizationId })
+      .andWhere('LOWER(customer.email) = :email', { email })
+      .getOne();
     if (existing) {
       existing.name = input.name;
       if (input.phone !== undefined) existing.phone = input.phone;

@@ -131,6 +131,29 @@ function pick<T extends object>(
   return found ?? null;
 }
 
+interface SqlCondition {
+  sql: string;
+  params: Record<string, unknown>;
+}
+
+/**
+ * Evaluates the conditions the customer lookup builds, honouring `LOWER(...)`
+ * literally: a query without it matches case-sensitively, exactly as Postgres
+ * would. That is what lets a test tell a `LOWER(email)` match apart from an
+ * equality against an already-lowercased literal.
+ */
+function matchesCondition(row: Customer, condition: SqlCondition): boolean {
+  const { sql, params } = condition;
+  if (sql.includes('organization_id')) {
+    return row.organizationId === params.organizationId;
+  }
+  if (/LOWER\(\s*customer\.email\s*\)/i.test(sql)) {
+    return (row.email ?? '').toLowerCase() === params.email;
+  }
+  if (sql.includes('email')) return row.email === params.email;
+  throw new Error(`unexpected condition: ${sql}`);
+}
+
 function buildManager(db: FakeDb, timeline: string[]): EntityManager {
   let nextBooking = 0;
 
@@ -149,6 +172,27 @@ function buildManager(db: FakeDb, timeline: string[]): EntityManager {
       getOne(): Promise<Resource | null> {
         timeline.push(`lock:${locked}:${mode}`);
         return Promise.resolve(pick(db.capable, { id: locked }));
+      },
+    };
+    return qb;
+  };
+
+  const customerQuery = () => {
+    const conditions: SqlCondition[] = [];
+    const qb = {
+      where(sql: string, params: Record<string, unknown>) {
+        conditions.push({ sql, params });
+        return qb;
+      },
+      andWhere(sql: string, params: Record<string, unknown>) {
+        conditions.push({ sql, params });
+        return qb;
+      },
+      getOne(): Promise<Customer | null> {
+        const found = db.customers.find((row) =>
+          conditions.every((condition) => matchesCondition(row, condition)),
+        );
+        return Promise.resolve(found ?? null);
       },
     };
     return qb;
@@ -196,9 +240,9 @@ function buildManager(db: FakeDb, timeline: string[]): EntityManager {
     },
 
     createQueryBuilder(target: unknown) {
-      if (target !== Resource)
-        throw new Error('unexpected query builder target');
-      return lockQuery();
+      if (target === Resource) return lockQuery();
+      if (target === Customer) return customerQuery();
+      throw new Error('unexpected query builder target');
     },
   };
 
@@ -591,6 +635,21 @@ describe('PublicBookingService.create', () => {
         phone: null,
         metadata: {},
       });
+    });
+
+    it('matches a customer whose stored email staff saved in mixed case', async () => {
+      const { service, db } = buildHarness({
+        customers: [buildCustomer({ email: 'Ada@Example.com' })],
+      });
+
+      await service.create(
+        'acme',
+        buildDto({
+          customer: { name: 'Ada Lovelace', email: 'ada@example.com' },
+        }),
+      );
+
+      expect(db.savedCustomers[0].id).toBe('cus-1');
     });
 
     it('does not reuse a customer with the same email in another org', async () => {
