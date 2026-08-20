@@ -30,21 +30,21 @@ describe('mergeIntervals', () => {
   });
 
   it('does not mutate the input array', () => {
-    const input = [iv(9, 17), iv(11, 12)];
+    const input = [iv(13, 15), iv(9, 12), iv(11, 14)];
     const inputSnapshot = input.map((i) => ({ ...i }));
     mergeIntervals(input);
     expect(input).toEqual(inputSnapshot);
   });
 
   it('filters out zero-length intervals', () => {
-    expect(mergeIntervals([iv(9, 12), iv(12, 12), iv(15, 17)])).toEqual([
-      iv(9, 12),
+    expect(mergeIntervals([iv(9, 10), iv(12, 12), iv(15, 17)])).toEqual([
+      iv(9, 10),
       iv(15, 17),
     ]);
   });
 
   it('filters out inverted intervals', () => {
-    expect(mergeIntervals([iv(9, 17), iv(14, 12)])).toEqual([iv(9, 17)]);
+    expect(mergeIntervals([iv(9, 10), iv(14, 12)])).toEqual([iv(9, 10)]);
   });
 });
 

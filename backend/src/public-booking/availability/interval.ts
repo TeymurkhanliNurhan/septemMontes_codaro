@@ -58,6 +58,8 @@ export function subtractIntervals(
     remaining = next;
   }
 
+  // Defensive: mergeIntervals now filters degenerate intervals, and both split
+  // branches use strict inequalities, so this cannot currently fire.
   return remaining.filter((window) => window.end > window.start);
 }
 
