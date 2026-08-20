@@ -1,20 +1,10 @@
+import { Body, Controller, Delete, Get, Post, Query } from '@nestjs/common';
 import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import { BookingResourceService } from './booking-resource.service';
@@ -22,8 +12,7 @@ import { CreateBookingResourceDto } from './dto/create-booking-resource.dto';
 
 @ApiTags('BookingResource')
 @Controller('booking-resources')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth('JWT-auth')
+@ApiCookieAuth('session')
 export class BookingResourceController {
   constructor(private readonly service: BookingResourceService) {}
 

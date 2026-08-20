@@ -6,17 +6,14 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import { AvailabilityRuleService } from './availability-rule.service';
@@ -26,8 +23,7 @@ import { AvailabilityRuleResponseDto } from './dto/rule-response.dto';
 
 @ApiTags('AvailabilityRule')
 @Controller('availability-rules')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth('JWT-auth')
+@ApiCookieAuth('session')
 export class AvailabilityRuleController {
   constructor(
     private readonly availabilityRuleService: AvailabilityRuleService,

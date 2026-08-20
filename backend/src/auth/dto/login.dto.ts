@@ -1,26 +1,34 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsUUID } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import {
+  EMAIL_MAX_LENGTH,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from '../auth.constants';
+import { NormalizeEmail } from '../../common/decorators/normalize-email.decorator';
 
 export class LoginDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  organizationId: string;
-
-  @ApiProperty({ example: 'jane@example.com' })
+  @ApiProperty({ example: 'berkay@example.com' })
+  @NormalizeEmail()
   @IsEmail()
+  @MaxLength(EMAIL_MAX_LENGTH)
   email: string;
-}
 
-export class AuthResponseDto {
-  @ApiProperty()
-  accessToken: string;
+  @ApiProperty({ example: 'berkay123' })
+  @IsString()
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @MaxLength(PASSWORD_MAX_LENGTH)
+  password: string;
 
-  @ApiProperty()
-  user: {
-    id: string;
-    organizationId: string;
-    email: string;
-    role: string;
-    name: string;
-  };
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  organizationId?: string;
 }

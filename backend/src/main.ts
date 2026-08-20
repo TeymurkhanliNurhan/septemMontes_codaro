@@ -1,12 +1,52 @@
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import {
+  SessionConfig,
+  SESSION_CONFIG_KEY,
+} from './auth/config/session.config';
+import { resolveTrustProxy } from './common/utils/trust-proxy';
+
+const DEFAULT_DEV_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'http://localhost:3000',
+];
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const configService = app.get(ConfigService);
+  const session = configService.getOrThrow<SessionConfig>(SESSION_CONFIG_KEY);
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
 
-  app.enableCors({ origin: true, credentials: true });
+  app.set(
+    'trust proxy',
+    resolveTrustProxy(configService.get<string>('TRUST_PROXY')),
+  );
+  app.use(cookieParser());
+
+  const configured = configService.get<string>('CORS_ORIGINS');
+  const allowedOrigins = configured
+    ? configured
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+    : DEFAULT_DEV_ORIGINS;
+
+  if (isProduction && !configured) {
+    throw new Error('CORS_ORIGINS must be set in production');
+  }
+
+  app.enableCors({
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -15,20 +55,29 @@ async function bootstrap() {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('Septem Montes Booking API')
-    .setDescription(
-      'REST API for organizations, resources, availability, and bookings',
-    )
-    .setVersion('1.0')
-    .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-      'JWT-auth',
-    )
-    .build();
+  if (!isProduction) {
+    const config = new DocumentBuilder()
+      .setTitle('Septem Montes Booking API')
+      .setDescription(
+        'REST API for organizations, resources, availability, and bookings',
+      )
+      .setVersion('1.0')
+      .addCookieAuth(
+        session.cookieName,
+        {
+          type: 'apiKey',
+          in: 'cookie',
+          name: session.cookieName,
+          description:
+            'Set automatically by POST /auth/login. Swagger is same-origin, ' +
+            'so "Try it out" works once you have logged in.',
+        },
+        'session',
+      )
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+    SwaggerModule.setup('api', app, SwaggerModule.createDocument(app, config));
+  }
 
   await app.listen(process.env.PORT ?? 3005, '0.0.0.0');
 }

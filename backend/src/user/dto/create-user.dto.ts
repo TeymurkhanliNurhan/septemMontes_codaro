@@ -1,30 +1,44 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import {
   IsEmail,
   IsEnum,
   IsObject,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
+  MinLength,
 } from 'class-validator';
+import {
+  EMAIL_MAX_LENGTH,
+  NAME_MAX_LENGTH,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from '../../auth/auth.constants';
+import { NormalizeEmail } from '../../common/decorators/normalize-email.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 
 export class CreateUserDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  organizationId: string;
-
-  @ApiProperty({ example: 'Jane Doe' })
+  @ApiProperty({ example: 'Berkay Bayar' })
   @IsString()
-  @MaxLength(255)
+  @MaxLength(NAME_MAX_LENGTH)
   name: string;
 
-  @ApiProperty({ example: 'jane@example.com' })
+  @ApiProperty({ example: 'berkay@example.com' })
+  @NormalizeEmail()
   @IsEmail()
-  @MaxLength(255)
+  @MaxLength(EMAIL_MAX_LENGTH)
   email: string;
+
+  @ApiPropertyOptional({
+    example: 'berkay123',
+    minLength: PASSWORD_MIN_LENGTH,
+    maxLength: PASSWORD_MAX_LENGTH,
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @MaxLength(PASSWORD_MAX_LENGTH)
+  password?: string;
 
   @ApiPropertyOptional({ enum: UserRole, default: UserRole.STAFF })
   @IsOptional()
@@ -35,12 +49,4 @@ export class CreateUserDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, unknown>;
-}
-
-export class CreateUserBodyDto extends CreateUserDto {
-  @ApiPropertyOptional({ name: 'organization_id' })
-  @IsOptional()
-  @IsUUID()
-  @Type(() => String)
-  organization_id?: string;
 }
