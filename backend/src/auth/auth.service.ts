@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { AppLogger } from '../common/logger/app-logger.service';
 import { AuthUser } from '../common/types/authenticated-request';
+import { OrganizationService } from '../organization/organization.service';
+import { UserResponseDto } from '../user/dto/user-response.dto';
 import { User } from '../user/entities/user.entity';
-import { UserService } from '../user/user.service';
+import { DEFAULT_ORG_SLUG, UserService } from '../user/user.service';
 import { AuthUserDto } from './dto/auth-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { RegisterUserDto } from './dto/register-user.dto';
 import { SessionDto } from './dto/session.dto';
 import { AmbiguousAccountException } from './exceptions/ambiguous-account.exception';
 import { InvalidCredentialsException } from './exceptions/invalid-credentials.exception';
@@ -25,9 +29,15 @@ export class AuthService {
     private readonly users: UserService,
     private readonly sessions: SessionService,
     private readonly passwords: PasswordService,
-  ) {}
+    private readonly organizations: OrganizationService,
+    private readonly logger: AppLogger,
+  ) {
+    this.logger.setContext(AuthService.name);
+  }
 
   async login(dto: LoginDto, client: ClientInfo): Promise<LoginResult> {
+    this.logger.debug(`Login attempt for ${dto.email}`);
+
     const candidates = await this.users.findLoginCandidates(
       dto.email,
       dto.organizationId,
@@ -35,6 +45,7 @@ export class AuthService {
     const matches = await this.matchPassword(candidates, dto.password);
 
     if (matches.length === 0) {
+      this.logger.warn(`Failed login for ${dto.email}`);
       throw new InvalidCredentialsException();
     }
     if (matches.length > 1) {
@@ -42,11 +53,39 @@ export class AuthService {
     }
 
     const [user] = matches;
+    this.logger.log(
+      `User signed in: ${user.email} (role=${user.role}, id=${user.id})`,
+    );
 
     return {
       user: AuthUserDto.fromEntity(user),
       session: await this.sessions.issue(user.id, client),
     };
+  }
+
+  async registerUser(dto: RegisterUserDto): Promise<UserResponseDto> {
+    this.logger.log(
+      `Registering user ${dto.email} with role ${dto.role} into ${DEFAULT_ORG_SLUG}`,
+    );
+
+    const organization = await this.organizations.findBySlug(DEFAULT_ORG_SLUG);
+    if (!organization) {
+      this.logger.error(`Default organization '${DEFAULT_ORG_SLUG}' is missing`);
+      throw new NotFoundException(
+        `Default organization '${DEFAULT_ORG_SLUG}' not found`,
+      );
+    }
+
+    const created = await this.users.registerInDefaultOrg({
+      name: dto.name,
+      email: dto.email,
+      password: dto.password,
+      role: dto.role,
+      organizationId: organization.id,
+    });
+
+    this.logger.log(`User registered: ${created.email} (${created.id})`);
+    return created;
   }
 
   me(user: AuthUser): AuthUserDto {

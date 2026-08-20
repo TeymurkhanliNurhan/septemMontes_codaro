@@ -1,6 +1,8 @@
 import { Test } from '@nestjs/testing';
+import { AppLogger } from '../common/logger/app-logger.service';
 import { UserRole } from '../common/enums/user-role.enum';
 import { AuthUser } from '../common/types/authenticated-request';
+import { OrganizationService } from '../organization/organization.service';
 import { User } from '../user/entities/user.entity';
 import { UserService } from '../user/user.service';
 import { AuthService } from './auth.service';
@@ -81,12 +83,26 @@ describe('AuthService', () => {
 
     passwords = { verify: jest.fn(), hash: jest.fn() };
 
+    const logger = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      verbose: jest.fn(),
+    };
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UserService, useValue: users },
         { provide: SessionService, useValue: sessions },
         { provide: PasswordService, useValue: passwords },
+        {
+          provide: OrganizationService,
+          useValue: { findBySlug: jest.fn() },
+        },
+        { provide: AppLogger, useValue: logger },
       ],
     }).compile();
 

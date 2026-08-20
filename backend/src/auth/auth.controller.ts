@@ -10,6 +10,7 @@ import {
   Res,
 } from '@nestjs/common';
 import {
+  ApiBody,
   ApiCookieAuth,
   ApiOperation,
   ApiQuery,
@@ -19,6 +20,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import type { AuthUser } from '../common/types/authenticated-request';
+import { UserResponseDto } from '../user/dto/user-response.dto';
 import { AuthService } from './auth.service';
 import { LOGIN_RATE_LIMIT } from './auth.constants';
 import { Client } from './decorators/client.decorator';
@@ -27,6 +29,7 @@ import { Public } from './decorators/public.decorator';
 import { AuthUserDto } from './dto/auth-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { RegisterUserDto } from './dto/register-user.dto';
 import { SessionDto } from './dto/session.dto';
 import { SessionCookieService } from './services/session-cookie.service';
 import type { ClientInfo } from './types/client-info';
@@ -56,6 +59,20 @@ export class AuthController {
     const { user, session } = await this.authService.login(dto, client);
     this.cookies.write(response, session);
     return user;
+  }
+
+  @Public()
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @Throttle({ login: LOGIN_RATE_LIMIT })
+  @ApiOperation({
+    summary:
+      'Register into organization septem_montes (created_at auto, updated_at null)',
+  })
+  @ApiBody({ type: RegisterUserDto })
+  @ApiResponse({ status: HttpStatus.CREATED, type: UserResponseDto })
+  registerUser(@Body() dto: RegisterUserDto): Promise<UserResponseDto> {
+    return this.authService.registerUser(dto);
   }
 
   @Post('logout')
