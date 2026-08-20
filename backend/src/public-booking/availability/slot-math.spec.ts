@@ -109,6 +109,88 @@ describe('computeSlots', () => {
 
     expect(slots).toEqual([iv(11, 12)]);
   });
+
+  it('returns empty for zero duration', () => {
+    const slots = computeSlots({
+      windows: [iv(9, 12)],
+      busy: [],
+      durationMs: 0,
+      bufferBeforeMs: 0,
+      bufferAfterMs: 0,
+      notBefore: 0,
+    });
+
+    expect(slots).toEqual([]);
+  });
+
+  it('returns empty for negative duration', () => {
+    const slots = computeSlots({
+      windows: [iv(9, 12)],
+      busy: [],
+      durationMs: -60 * MIN,
+      bufferBeforeMs: 0,
+      bufferAfterMs: 0,
+      notBefore: 0,
+    });
+
+    expect(slots).toEqual([]);
+  });
+
+  it('applies bufferBefore to prevent slots before a booking', () => {
+    const slots = computeSlots({
+      windows: [iv(9, 13)],
+      busy: [{ start: at(11), end: at(11, 30) }],
+      durationMs: 60 * MIN,
+      bufferBeforeMs: 60 * MIN,
+      bufferAfterMs: 0,
+      notBefore: 0,
+    });
+
+    // 10:00-11:00 is blocked by bufferBefore, so 09:00 and 11:30 slots are available.
+    expect(slots).toEqual([iv(9, 10), { start: at(11, 30), end: at(12, 30) }]);
+  });
+
+  it('applies bufferAfter to prevent slots after a booking', () => {
+    const slots = computeSlots({
+      windows: [iv(9, 13)],
+      busy: [{ start: at(11), end: at(11, 30) }],
+      durationMs: 60 * MIN,
+      bufferBeforeMs: 0,
+      bufferAfterMs: 60 * MIN,
+      notBefore: 0,
+    });
+
+    // 11:30-12:30 is blocked by bufferAfter, so 09:00 and 10:00 slots are available.
+    expect(slots).toEqual([iv(9, 10), iv(10, 11)]);
+  });
+
+  it('keeps a slot starting exactly at notBefore', () => {
+    const slots = computeSlots({
+      windows: [iv(9, 12)],
+      busy: [],
+      durationMs: 60 * MIN,
+      bufferBeforeMs: 0,
+      bufferAfterMs: 0,
+      notBefore: at(10),
+    });
+
+    // Slots starting exactly at notBefore are included (inclusive boundary).
+    expect(slots).toEqual([iv(10, 11), iv(11, 12)]);
+  });
+
+  it('merges overlapping availability windows', () => {
+    const slots = computeSlots({
+      windows: [iv(9, 11), iv(10, 13)],
+      busy: [],
+      durationMs: 60 * MIN,
+      bufferBeforeMs: 0,
+      bufferAfterMs: 0,
+      notBefore: 0,
+    });
+
+    // Overlapping windows are merged to 09:00-13:00, yielding four slots.
+    expect(slots).toEqual([iv(9, 10), iv(10, 11), iv(11, 12), iv(12, 13)]);
+  });
 });
 
 describe('mergeResourceSlots', () => {

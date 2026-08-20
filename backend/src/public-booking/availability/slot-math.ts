@@ -29,6 +29,15 @@ export interface MergedSlot {
  * a booking blocks the padding around it as well as its own span.
  */
 export function computeSlots(input: SlotInput): Interval[] {
+  // Guard against misconfigured duration that would cause infinite loops.
+  // A zero duration causes the stepping loop to never advance; a negative
+  // duration walks backwards infinitely. Both crash the server. DB constraints
+  // and DTOs should prevent this, but this layer owns the loop and should own
+  // the guard — TypeORM drops CHECK constraints if not in entity metadata.
+  // Return empty (no availability) rather than throwing, so a bad config
+  // degrades to "nothing bookable" on a public endpoint instead of a 500.
+  if (input.durationMs <= 0) return [];
+
   const blocked = input.busy.map((interval) =>
     expandInterval(interval, input.bufferBeforeMs, input.bufferAfterMs),
   );
