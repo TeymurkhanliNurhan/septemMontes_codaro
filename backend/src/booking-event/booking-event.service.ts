@@ -14,7 +14,10 @@ export class BookingEventService {
   ) {}
 
   async findByFilter(bookingId: string): Promise<BookingEventResponseDto[]> {
-    const items = await this.repo.find({ where: { bookingId }, order: { createdAt: 'DESC' } });
+    const items = await this.repo.find({
+      where: { bookingId },
+      order: { createdAt: 'DESC' },
+    });
     return items.map((item) => this.toDto(item));
   }
 
@@ -37,7 +40,8 @@ export class BookingEventService {
 
   async update(dto: UpdateBookingEventDto): Promise<BookingEventResponseDto> {
     const entity = await this.repo.findOne({ where: { id: dto.id } });
-    if (!entity) throw new NotFoundException('BookingEvent ' + dto.id + ' not found');
+    if (!entity)
+      throw new NotFoundException('BookingEvent ' + dto.id + ' not found');
     Object.assign(entity, dto);
     const saved = await this.repo.save(entity);
     return this.toDto(saved);
@@ -45,10 +49,11 @@ export class BookingEventService {
 
   async remove(id: string): Promise<void> {
     const result = await this.repo.delete(id);
-    if (!result.affected) throw new NotFoundException('BookingEvent ' + id + ' not found');
+    if (!result.affected)
+      throw new NotFoundException('BookingEvent ' + id + ' not found');
   }
 
   private toDto(entity: BookingEvent): BookingEventResponseDto {
-    return entity as unknown as BookingEventResponseDto;
+    return entity;
   }
 }

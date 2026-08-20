@@ -1,10 +1,4 @@
-import {
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  PrimaryColumn,
-} from 'typeorm';
+import { Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Booking } from '../../booking/entities/booking.entity';
 import { Resource } from '../../resource/entities/resource.entity';
 

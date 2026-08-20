@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 import { AvailabilityExceptionType } from '../../common/enums/availability-exception-type.enum';
 
 export class UpdateAvailabilityExceptionDto {

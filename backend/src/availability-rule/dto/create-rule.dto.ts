@@ -1,6 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsInt, Min, Max, IsObject, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
-
+import {
+  IsBoolean,
+  IsInt,
+  Min,
+  Max,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateAvailabilityRuleDto {
   @ApiProperty()

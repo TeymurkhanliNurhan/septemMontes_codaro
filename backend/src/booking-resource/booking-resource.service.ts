@@ -12,12 +12,16 @@ export class BookingResourceService {
     private readonly repo: Repository<BookingResource>,
   ) {}
 
-  async findAll(filter?: Partial<CreateBookingResourceDto>): Promise<BookingResourceResponseDto[]> {
+  async findAll(
+    filter?: Partial<CreateBookingResourceDto>,
+  ): Promise<BookingResourceResponseDto[]> {
     const items = await this.repo.find({ where: filter as object });
-    return items as BookingResourceResponseDto[];
+    return items;
   }
 
-  async create(dto: CreateBookingResourceDto): Promise<BookingResourceResponseDto> {
+  async create(
+    dto: CreateBookingResourceDto,
+  ): Promise<BookingResourceResponseDto> {
     const entity = this.repo.create(dto);
     return this.repo.save(entity);
   }

@@ -23,5 +23,5 @@
     "noFallthroughCasesInSwitch": true,
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
-  "include": ["src/**/*", "ormconfig.ts"]
+  "include": ["src/**/*", "test/**/*", "ormconfig.ts"]
 }

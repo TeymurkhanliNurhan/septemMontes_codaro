@@ -11,7 +11,10 @@ import { AvailabilityExceptionType } from '../../common/enums/availability-excep
 import { Resource } from '../../resource/entities/resource.entity';
 
 @Entity('availability_exceptions')
-@Index('idx_availability_exceptions_resource_date', ['resourceId', 'exceptionDate'])
+@Index('idx_availability_exceptions_resource_date', [
+  'resourceId',
+  'exceptionDate',
+])
 export class AvailabilityException {
   @PrimaryGeneratedColumn('uuid', { name: 'id' })
   id: string;

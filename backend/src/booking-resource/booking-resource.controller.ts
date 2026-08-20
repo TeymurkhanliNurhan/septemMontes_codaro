@@ -1,5 +1,18 @@
-import { Body, Controller, Delete, Get, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -32,7 +45,10 @@ export class BookingResourceController {
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @ApiQuery({ name: 'bookingId', required: true })
   @ApiQuery({ name: 'resourceId', required: true })
-  remove(@Query('bookingId') bookingId: string, @Query('resourceId') resourceId: string) {
+  remove(
+    @Query('bookingId') bookingId: string,
+    @Query('resourceId') resourceId: string,
+  ) {
     return this.service.remove(bookingId, resourceId);
   }
 }

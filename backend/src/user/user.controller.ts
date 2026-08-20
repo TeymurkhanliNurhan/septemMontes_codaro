@@ -20,6 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -32,8 +33,8 @@ import { UserResponseDto } from './dto/user-response.dto';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  private getOrganizationId(req: any): string {
-    return (req.user as { organizationId: string }).organizationId;
+  private getOrganizationId(req: AuthenticatedRequest): string {
+    return req.user.organizationId;
   }
 
   @Get()
@@ -41,7 +42,7 @@ export class UserController {
   @ApiOperation({ summary: 'List users in organization' })
   @ApiQuery({ name: 'id', required: false })
   @ApiResponse({ status: 200, type: [UserResponseDto] })
-  async findAll(@Req() req: any, @Query('id') id?: string) {
+  async findAll(@Req() req: AuthenticatedRequest, @Query('id') id?: string) {
     const organizationId = this.getOrganizationId(req);
     if (id) {
       return this.userService.findOne(id, organizationId);
@@ -53,7 +54,7 @@ export class UserController {
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Create user' })
   @ApiResponse({ status: 201, type: UserResponseDto })
-  create(@Req() req: any, @Body() dto: CreateUserDto) {
+  create(@Req() req: AuthenticatedRequest, @Body() dto: CreateUserDto) {
     return this.userService.create({
       ...dto,
       organizationId: dto.organizationId ?? this.getOrganizationId(req),
@@ -64,7 +65,7 @@ export class UserController {
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update user' })
   @ApiResponse({ status: 200, type: UserResponseDto })
-  update(@Req() req: any, @Body() dto: UpdateUserDto) {
+  update(@Req() req: AuthenticatedRequest, @Body() dto: UpdateUserDto) {
     return this.userService.update(dto, this.getOrganizationId(req));
   }
 
@@ -72,7 +73,7 @@ export class UserController {
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Delete user' })
   @ApiQuery({ name: 'id', required: true })
-  remove(@Req() req: any, @Query('id') id: string) {
+  remove(@Req() req: AuthenticatedRequest, @Query('id') id: string) {
     return this.userService.remove(id, this.getOrganizationId(req));
   }
 }

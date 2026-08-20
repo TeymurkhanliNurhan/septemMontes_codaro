@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsObject, IsOptional, IsUUID } from 'class-validator';
 import { BookingEventType } from '../../common/enums/booking-event-type.enum';
 
 export class UpdateBookingEventDto {

@@ -13,8 +13,13 @@ export class BookingService {
     private readonly repo: Repository<Booking>,
   ) {}
 
-  async findByOrganization(organizationId: string): Promise<BookingResponseDto[]> {
-    const items = await this.repo.find({ where: { organizationId }, order: { createdAt: 'DESC' } });
+  async findByOrganization(
+    organizationId: string,
+  ): Promise<BookingResponseDto[]> {
+    const items = await this.repo.find({
+      where: { organizationId },
+      order: { createdAt: 'DESC' },
+    });
     return items.map((item) => this.toDto(item));
   }
 
@@ -24,7 +29,11 @@ export class BookingService {
     return this.toDto(item);
   }
 
-  async create(dto: CreateBookingDto, organizationId?: string, createdByUserId?: string): Promise<BookingResponseDto> {
+  async create(
+    dto: CreateBookingDto,
+    organizationId?: string,
+    createdByUserId?: string,
+  ): Promise<BookingResponseDto> {
     const entity = this.repo.create({
       ...dto,
       organizationId: dto.organizationId ?? organizationId,
@@ -38,7 +47,8 @@ export class BookingService {
 
   async update(dto: UpdateBookingDto): Promise<BookingResponseDto> {
     const entity = await this.repo.findOne({ where: { id: dto.id } });
-    if (!entity) throw new NotFoundException('Booking ' + dto.id + ' not found');
+    if (!entity)
+      throw new NotFoundException('Booking ' + dto.id + ' not found');
     Object.assign(entity, dto);
     const saved = await this.repo.save(entity);
     return this.toDto(saved);
@@ -46,10 +56,11 @@ export class BookingService {
 
   async remove(id: string): Promise<void> {
     const result = await this.repo.delete(id);
-    if (!result.affected) throw new NotFoundException('Booking ' + id + ' not found');
+    if (!result.affected)
+      throw new NotFoundException('Booking ' + id + ' not found');
   }
 
   private toDto(entity: Booking): BookingResponseDto {
-    return entity as unknown as BookingResponseDto;
+    return entity;
   }
 }
