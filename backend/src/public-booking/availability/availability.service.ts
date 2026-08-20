@@ -11,13 +11,13 @@ import { Resource } from '../../resource/entities/resource.entity';
 import { Service } from '../../service/entities/service.entity';
 import { ServiceResource } from '../../service-resource/entities/service-resource.entity';
 import { buildWindows } from './build-windows';
+import { Interval } from './interval';
 import {
-  expandInterval,
-  Interval,
-  mergeIntervals,
-  subtractIntervals,
-} from './interval';
-import { computeSlots, MergedSlot, mergeResourceSlots } from './slot-math';
+  computeFreeIntervals,
+  computeSlots,
+  MergedSlot,
+  mergeResourceSlots,
+} from './slot-math';
 import { eachLocalDate } from './time-zone';
 
 const MINUTE_MS = 60_000;
@@ -172,14 +172,12 @@ export class AvailabilityService {
     if (windows.length === 0) return false;
 
     const busy = await this.busyForResource(resource.id, windows, manager);
-    const blocked = busy.map((interval) =>
-      expandInterval(
-        interval,
-        search.service.bufferBeforeMinutes * MINUTE_MS,
-        search.service.bufferAfterMinutes * MINUTE_MS,
-      ),
+    const free = computeFreeIntervals(
+      windows,
+      busy,
+      search.service.bufferBeforeMinutes * MINUTE_MS,
+      search.service.bufferAfterMinutes * MINUTE_MS,
     );
-    const free = subtractIntervals(mergeIntervals(windows), blocked);
 
     const end = startsAt + search.service.durationMinutes * MINUTE_MS;
     return free.some(

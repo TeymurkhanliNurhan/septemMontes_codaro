@@ -1,4 +1,8 @@
-import { computeSlots, mergeResourceSlots } from './slot-math';
+import {
+  computeFreeIntervals,
+  computeSlots,
+  mergeResourceSlots,
+} from './slot-math';
 
 const at = (h: number, m = 0) => Date.UTC(2026, 7, 24, h, m);
 const iv = (sh: number, eh: number) => ({ start: at(sh), end: at(eh) });
@@ -190,6 +194,49 @@ describe('computeSlots', () => {
 
     // Overlapping windows are merged to 09:00-13:00, yielding four slots.
     expect(slots).toEqual([iv(9, 10), iv(10, 11), iv(11, 12), iv(12, 13)]);
+  });
+});
+
+describe('computeSlots / computeFreeIntervals agreement', () => {
+  // computeSlots and AvailabilityService.isSlotFree answer different
+  // questions (a grid of slots vs. containment of one instant) but must
+  // never disagree about what is free -- that disagreement is exactly the
+  // "advertised then refused" bug this pair of functions exists to
+  // prevent. Pin the invariant computeSlots is built to satisfy: every slot
+  // it emits sits fully inside a computeFreeIntervals interval computed
+  // from the same inputs.
+  it('every emitted slot is fully contained in a computeFreeIntervals interval', () => {
+    const windows = [iv(9, 13), iv(14, 18)];
+    const busy = [iv(10, 11), { start: at(15, 30), end: at(16) }];
+    const bufferBeforeMs = 15 * MIN;
+    const bufferAfterMs = 15 * MIN;
+    const durationMs = 60 * MIN;
+
+    const slots = computeSlots({
+      windows,
+      busy,
+      durationMs,
+      bufferBeforeMs,
+      bufferAfterMs,
+      notBefore: 0,
+    });
+    const free = computeFreeIntervals(
+      windows,
+      busy,
+      bufferBeforeMs,
+      bufferAfterMs,
+    );
+
+    // Sanity: the scenario must actually produce slots, or the containment
+    // check below would pass vacuously.
+    expect(slots.length).toBeGreaterThan(0);
+
+    for (const slot of slots) {
+      const contained = free.some(
+        (interval) => interval.start <= slot.start && slot.end <= interval.end,
+      );
+      expect(contained).toBe(true);
+    }
   });
 });
 

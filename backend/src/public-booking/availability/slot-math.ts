@@ -24,6 +24,30 @@ export interface MergedSlot {
 }
 
 /**
+ * Availability windows minus buffer-expanded busy intervals: the free time
+ * actually left to book. Busy intervals are widened by the service buffers
+ * before being removed, so a booking blocks the padding around it as well
+ * as its own span.
+ *
+ * Single source of truth for "what is free" — `computeSlots` steps this
+ * into a grid, and `AvailabilityService.isSlotFree` checks containment
+ * directly against it. Splitting the free-interval computation out of
+ * `computeSlots` keeps those two callers from drifting into disagreement:
+ * one still advertises what the other still accepts.
+ */
+export function computeFreeIntervals(
+  windows: Interval[],
+  busy: Interval[],
+  bufferBeforeMs: number,
+  bufferAfterMs: number,
+): Interval[] {
+  const blocked = busy.map((interval) =>
+    expandInterval(interval, bufferBeforeMs, bufferAfterMs),
+  );
+  return subtractIntervals(mergeIntervals(windows), blocked);
+}
+
+/**
  * Turns availability windows into bookable slots for a single resource.
  * Busy intervals are widened by the service buffers before being removed, so
  * a booking blocks the padding around it as well as its own span.
@@ -38,11 +62,12 @@ export function computeSlots(input: SlotInput): Interval[] {
   // degrades to "nothing bookable" on a public endpoint instead of a 500.
   if (input.durationMs <= 0) return [];
 
-  const blocked = input.busy.map((interval) =>
-    expandInterval(interval, input.bufferBeforeMs, input.bufferAfterMs),
+  const free = computeFreeIntervals(
+    input.windows,
+    input.busy,
+    input.bufferBeforeMs,
+    input.bufferAfterMs,
   );
-
-  const free = subtractIntervals(mergeIntervals(input.windows), blocked);
   const slots: Interval[] = [];
 
   for (const window of free) {
