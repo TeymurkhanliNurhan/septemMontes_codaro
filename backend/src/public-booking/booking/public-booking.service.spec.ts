@@ -105,6 +105,12 @@ interface FakeDb {
   bookedResources: Record<string, unknown>[];
 }
 
+interface CapableCall {
+  serviceId: string;
+  /** undefined when the caller forgot to hand over its transaction. */
+  manager: EntityManager | undefined;
+}
+
 interface Harness {
   service: PublicBookingService;
   db: FakeDb;
@@ -113,6 +119,7 @@ interface Harness {
   /** Lock and availability calls in the order they happened. */
   timeline: string[];
   checks: SlotCheck[];
+  capableCalls: CapableCall[];
   state: { transactions: number };
 }
 
@@ -253,9 +260,14 @@ function buildAvailability(
   db: FakeDb,
   timeline: string[],
   checks: SlotCheck[],
+  capableCalls: CapableCall[],
 ): AvailabilityService {
   const double = {
-    capableResources(): Promise<Resource[]> {
+    capableResources(
+      serviceId: string,
+      manager?: EntityManager,
+    ): Promise<Resource[]> {
+      capableCalls.push({ serviceId, manager });
       return Promise.resolve(db.capable);
     },
     isSlotFree(
@@ -297,6 +309,7 @@ function buildHarness(world: World = {}): Harness {
 
   const timeline: string[] = [];
   const checks: SlotCheck[] = [];
+  const capableCalls: CapableCall[] = [];
   const state = { transactions: 0 };
   const manager = buildManager(db, timeline);
 
@@ -311,13 +324,14 @@ function buildHarness(world: World = {}): Harness {
 
   return {
     service: new PublicBookingService(
-      buildAvailability(db, timeline, checks),
+      buildAvailability(db, timeline, checks, capableCalls),
       dataSource,
     ),
     db,
     manager,
     timeline,
     checks,
+    capableCalls,
     state,
   };
 }
@@ -442,6 +456,14 @@ describe('PublicBookingService.create', () => {
       await service.create('acme', buildDto());
 
       expect(checks[0].manager).toBe(manager);
+    });
+
+    it('builds the candidate list on the transaction manager', async () => {
+      const { service, manager, capableCalls } = buildHarness();
+
+      await service.create('acme', buildDto());
+
+      expect(capableCalls[0].manager).toBe(manager);
     });
 
     it('re-checks the exact requested instant', async () => {

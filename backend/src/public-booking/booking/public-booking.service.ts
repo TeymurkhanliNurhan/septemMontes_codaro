@@ -74,6 +74,7 @@ export class PublicBookingService {
       }
 
       const candidates = await this.candidates(
+        manager,
         organization.id,
         service,
         dto.resourceId,
@@ -139,12 +140,17 @@ export class PublicBookingService {
    * under AUTO it is merely preferred, and the rest remain as fallbacks.
    */
   private async candidates(
+    manager: EntityManager,
     organizationId: string,
     service: Service,
     requestedResourceId?: string,
   ): Promise<Resource[]> {
+    // Manager for the same reason `claimResource` passes one: without it these
+    // two queries open a second pooled connection while this transaction holds
+    // the first, which is enough to wedge a pool of ten under concurrent load
+    // even though no row lock has been taken yet.
     const capable = (
-      await this.availability.capableResources(service.id)
+      await this.availability.capableResources(service.id, manager)
     ).filter((resource) => resource.organizationId === organizationId);
 
     // No candidates at all is a configuration problem, not contention. Saying
