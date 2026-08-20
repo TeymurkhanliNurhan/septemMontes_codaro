@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { AmbiguousAccountException } from './exceptions/ambiguous-account.exception';
 import { InvalidCredentialsException } from './exceptions/invalid-credentials.exception';
 import { SessionNotFoundException } from './exceptions/session-not-found.exception';
+import { AccessTokenService } from './services/access-token.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
 
@@ -83,6 +84,11 @@ describe('AuthService', () => {
 
     passwords = { verify: jest.fn(), hash: jest.fn() };
 
+    const accessTokens = {
+      sign: jest.fn(() => Promise.resolve('jwt-token')),
+      verify: jest.fn(),
+    };
+
     const logger = {
       setContext: jest.fn(),
       log: jest.fn(),
@@ -106,6 +112,7 @@ describe('AuthService', () => {
         { provide: UserService, useValue: users },
         { provide: SessionService, useValue: sessions },
         { provide: PasswordService, useValue: passwords },
+        { provide: AccessTokenService, useValue: accessTokens },
         { provide: OrganizationService, useValue: organizations },
         { provide: AppLogger, useValue: logger },
       ],
@@ -166,6 +173,7 @@ describe('AuthService', () => {
         role: UserRole.ADMIN,
       });
       expect(result.session.token).toBe('raw-token');
+      expect(result.accessToken).toBe('jwt-token');
       expect(sessions.issue).toHaveBeenCalledWith('user-1', {
         ip: '127.0.0.1',
       });

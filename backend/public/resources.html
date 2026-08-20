@@ -239,6 +239,82 @@
         box-shadow: 0 20px 50px color-mix(in srgb, var(--ink) 18%, transparent);
       }
 
+      dialog.wide {
+        width: min(820px, calc(100vw - 2rem));
+      }
+
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin: 1rem 0 0.85rem;
+      }
+
+      .tabs button {
+        padding: 0.45rem 0.8rem;
+        font-size: 0.9rem;
+        background: transparent;
+        color: var(--moss);
+        border: 1px solid color-mix(in srgb, var(--moss) 28%, transparent);
+      }
+
+      .tabs button.active {
+        background: var(--moss);
+        color: #fff;
+        border-color: var(--moss);
+      }
+
+      .tab-panel[hidden] {
+        display: none;
+      }
+
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 1rem 0 0.6rem;
+      }
+
+      .section-head h3 {
+        margin: 0;
+        font-family: Fraunces, Georgia, serif;
+        font-size: 1.15rem;
+        color: var(--moss);
+      }
+
+      .avail-table {
+        width: 100%;
+        font-size: 0.92rem;
+      }
+
+      .avail-table th,
+      .avail-table td {
+        padding: 0.55rem 0.4rem;
+      }
+
+      .muted {
+        color: #4a5c52;
+      }
+
+      .type-pill {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .type-pill.unavailable {
+        background: color-mix(in srgb, var(--danger) 14%, white);
+        color: var(--danger);
+      }
+
+      .type-pill.available {
+        background: color-mix(in srgb, var(--leaf) 18%, white);
+        color: var(--moss);
+      }
+
       dialog::backdrop {
         background: color-mix(in srgb, var(--ink) 45%, transparent);
       }
@@ -383,20 +459,159 @@
       </form>
     </dialog>
 
-    <dialog id="detail-dialog">
+    <dialog id="detail-dialog" class="wide">
       <div class="dialog-body">
-        <h2>Resource detail</h2>
-        <dl class="detail-grid" id="detail-content"></dl>
-        <div class="placeholder">Services — coming soon</div>
-        <div class="placeholder">Availability — coming soon</div>
-        <div class="placeholder">Upcoming bookings — coming soon</div>
+        <h2 id="detail-title">Resource detail</h2>
+        <div class="tabs" role="tablist">
+          <button type="button" class="active" data-tab="overview">Overview</button>
+          <button type="button" data-tab="services">Services</button>
+          <button type="button" data-tab="availability">Availability</button>
+          <button type="button" data-tab="bookings">Bookings</button>
+        </div>
+
+        <div class="tab-panel" id="tab-overview">
+          <dl class="detail-grid" id="detail-content"></dl>
+        </div>
+        <div class="tab-panel" id="tab-services" hidden>
+          <div class="placeholder">Services — coming soon</div>
+        </div>
+        <div class="tab-panel" id="tab-availability" hidden>
+          <div class="section-head">
+            <h3>Regular weekly schedule</h3>
+            <button type="button" id="add-rule-btn" hidden>Add schedule</button>
+          </div>
+          <div id="rules-state" class="loading">Loading schedule…</div>
+          <div id="rules-wrap" hidden>
+            <table class="avail-table">
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  <th>Time</th>
+                  <th>Timezone</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rules-rows"></tbody>
+            </table>
+          </div>
+
+          <div class="section-head">
+            <h3>Exceptions</h3>
+            <button type="button" id="add-exception-btn" hidden>Add exception</button>
+          </div>
+          <div id="exceptions-state" class="loading">Loading exceptions…</div>
+          <div id="exceptions-wrap" hidden>
+            <table class="avail-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Type</th>
+                  <th>Reason</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="exceptions-rows"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="tab-panel" id="tab-bookings" hidden>
+          <div class="placeholder">Upcoming bookings — coming soon</div>
+        </div>
+
         <div class="dialog-actions">
           <button type="button" class="secondary" id="close-detail">Close</button>
         </div>
       </div>
     </dialog>
 
+    <dialog id="rule-dialog">
+      <form class="dialog-body" id="rule-form">
+        <h2 id="rule-form-title">Add schedule</h2>
+        <input type="hidden" id="rule-edit-id" />
+        <label>
+          Day of week
+          <select id="rule-day" required>
+            <option value="1">Monday</option>
+            <option value="2">Tuesday</option>
+            <option value="3">Wednesday</option>
+            <option value="4">Thursday</option>
+            <option value="5">Friday</option>
+            <option value="6">Saturday</option>
+            <option value="0">Sunday</option>
+          </select>
+        </label>
+        <label>
+          Start time
+          <input id="rule-start" type="time" required />
+        </label>
+        <label>
+          End time
+          <input id="rule-end" type="time" required />
+        </label>
+        <label>
+          Timezone
+          <input id="rule-timezone" maxlength="100" placeholder="Europe/Warsaw" />
+        </label>
+        <label>
+          Metadata (JSON object)
+          <textarea id="rule-metadata" rows="4" placeholder="{}"></textarea>
+        </label>
+        <div class="message" id="rule-form-message"></div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" id="cancel-rule-form">Cancel</button>
+          <button type="submit" id="rule-save-btn">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="exception-dialog">
+      <form class="dialog-body" id="exception-form">
+        <h2 id="exception-form-title">Add exception</h2>
+        <input type="hidden" id="exception-edit-id" />
+        <label>
+          Date
+          <input id="exception-date" type="date" required />
+        </label>
+        <label>
+          Start time
+          <input id="exception-start" type="time" required />
+        </label>
+        <label>
+          End time
+          <input id="exception-end" type="time" required />
+        </label>
+        <label>
+          Type
+          <select id="exception-type" required>
+            <option value="UNAVAILABLE">UNAVAILABLE</option>
+            <option value="AVAILABLE">AVAILABLE</option>
+          </select>
+        </label>
+        <label>
+          Reason
+          <input id="exception-reason" maxlength="500" placeholder="optional" />
+        </label>
+        <div class="message" id="exception-form-message"></div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" id="cancel-exception-form">Cancel</button>
+          <button type="submit" id="exception-save-btn">Save</button>
+        </div>
+      </form>
+    </dialog>
+
     <script>
+      const DAY_NAMES = [
+        'Sunday',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+      ];
+
       const MUTATE_ROLES = new Set(['OWNER', 'ADMIN']);
       const READ_ROLES = new Set(['OWNER', 'ADMIN', 'STAFF']);
 
@@ -407,6 +622,10 @@
         loading: false,
         user: null,
         canMutate: false,
+        detailResourceId: null,
+        detailTab: 'overview',
+        rules: [],
+        exceptions: [],
       };
 
       const els = {
@@ -434,7 +653,38 @@
         statusField: document.getElementById('status-field'),
         metadata: document.getElementById('metadata'),
         saveBtn: document.getElementById('save-btn'),
+        detailTitle: document.getElementById('detail-title'),
         detailContent: document.getElementById('detail-content'),
+        addRuleBtn: document.getElementById('add-rule-btn'),
+        addExceptionBtn: document.getElementById('add-exception-btn'),
+        rulesState: document.getElementById('rules-state'),
+        rulesWrap: document.getElementById('rules-wrap'),
+        rulesRows: document.getElementById('rules-rows'),
+        exceptionsState: document.getElementById('exceptions-state'),
+        exceptionsWrap: document.getElementById('exceptions-wrap'),
+        exceptionsRows: document.getElementById('exceptions-rows'),
+        ruleDialog: document.getElementById('rule-dialog'),
+        ruleForm: document.getElementById('rule-form'),
+        ruleFormTitle: document.getElementById('rule-form-title'),
+        ruleFormMessage: document.getElementById('rule-form-message'),
+        ruleEditId: document.getElementById('rule-edit-id'),
+        ruleDay: document.getElementById('rule-day'),
+        ruleStart: document.getElementById('rule-start'),
+        ruleEnd: document.getElementById('rule-end'),
+        ruleTimezone: document.getElementById('rule-timezone'),
+        ruleMetadata: document.getElementById('rule-metadata'),
+        ruleSaveBtn: document.getElementById('rule-save-btn'),
+        exceptionDialog: document.getElementById('exception-dialog'),
+        exceptionForm: document.getElementById('exception-form'),
+        exceptionFormTitle: document.getElementById('exception-form-title'),
+        exceptionFormMessage: document.getElementById('exception-form-message'),
+        exceptionEditId: document.getElementById('exception-edit-id'),
+        exceptionDate: document.getElementById('exception-date'),
+        exceptionStart: document.getElementById('exception-start'),
+        exceptionEnd: document.getElementById('exception-end'),
+        exceptionType: document.getElementById('exception-type'),
+        exceptionReason: document.getElementById('exception-reason'),
+        exceptionSaveBtn: document.getElementById('exception-save-btn'),
       };
 
       function requireAuth() {
@@ -473,16 +723,19 @@
       }
 
       async function api(path, options = {}) {
+        const accessToken = localStorage.getItem('accessToken');
         const response = await fetch(path, {
           ...options,
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
             ...(options.headers || {}),
           },
         });
 
         if (response.status === 401) {
+          localStorage.removeItem('accessToken');
           localStorage.removeItem('user');
           window.location.href = '/signin.html';
           throw new Error('Session expired');
@@ -623,6 +876,9 @@
       async function openDetail(id) {
         try {
           const { data } = await api(`/resources/${id}`);
+          state.detailResourceId = data.id;
+          state.detailTab = 'overview';
+          els.detailTitle.textContent = data.name;
           els.detailContent.innerHTML = `
             <div><dt>Name</dt><dd>${escapeHtml(data.name)}</dd></div>
             <div><dt>Type</dt><dd>${escapeHtml(data.resourceType || '—')}</dd></div>
@@ -631,10 +887,235 @@
             <div><dt>Updated</dt><dd>${new Date(data.updatedAt).toLocaleString()}</dd></div>
             <div><dt>Metadata</dt><dd><pre>${escapeHtml(JSON.stringify(data.metadata || {}, null, 2))}</pre></dd></div>
           `;
+          els.addRuleBtn.hidden = !state.canMutate;
+          els.addExceptionBtn.hidden = !state.canMutate;
+          setDetailTab('overview');
           els.detailDialog.showModal();
         } catch (error) {
           showToast(error.message, 'error');
         }
+      }
+
+      function setDetailTab(tab) {
+        state.detailTab = tab;
+        document.querySelectorAll('.tabs button').forEach((button) => {
+          button.classList.toggle('active', button.dataset.tab === tab);
+        });
+        ['overview', 'services', 'availability', 'bookings'].forEach((name) => {
+          const panel = document.getElementById(`tab-${name}`);
+          if (panel) panel.hidden = name !== tab;
+        });
+        if (tab === 'availability' && state.detailResourceId) {
+          loadAvailability(state.detailResourceId);
+        }
+      }
+
+      function availabilityBase(resourceId) {
+        return `/resources/${resourceId}/availability`;
+      }
+
+      async function loadAvailability(resourceId) {
+        await Promise.all([
+          loadRules(resourceId),
+          loadExceptions(resourceId),
+        ]);
+      }
+
+      async function loadRules(resourceId) {
+        els.rulesState.hidden = false;
+        els.rulesState.className = 'loading';
+        els.rulesState.textContent = 'Loading schedule…';
+        els.rulesWrap.hidden = true;
+
+        try {
+          const result = await api(`${availabilityBase(resourceId)}/rules`);
+          state.rules = result.data || [];
+          renderRules();
+        } catch (error) {
+          els.rulesState.className = 'error-state';
+          els.rulesState.textContent = error.message || 'Failed to load schedule.';
+        }
+      }
+
+      function renderRules() {
+        const byDay = new Map(DAY_NAMES.map((_, index) => [index, []]));
+        for (const rule of state.rules) {
+          byDay.get(rule.dayOfWeek)?.push(rule);
+        }
+
+        const rows = [];
+        for (let day = 1; day <= 6; day += 1) {
+          rows.push(...ruleRowsForDay(day, byDay.get(day) || []));
+        }
+        rows.push(...ruleRowsForDay(0, byDay.get(0) || []));
+
+        els.rulesRows.innerHTML = rows.join('');
+        els.rulesState.hidden = true;
+        els.rulesWrap.hidden = false;
+      }
+
+      function ruleRowsForDay(day, rules) {
+        if (!rules.length) {
+          return [
+            `<tr>
+              <td>${DAY_NAMES[day]}</td>
+              <td class="muted">unavailable</td>
+              <td class="muted">—</td>
+              <td class="muted">—</td>
+              <td></td>
+            </tr>`,
+          ];
+        }
+
+        return rules.map((rule) => {
+          const actions = [];
+          if (state.canMutate) {
+            actions.push(
+              `<button type="button" class="secondary" data-rule-action="edit" data-id="${rule.id}">Edit</button>`,
+            );
+            if (rule.isActive) {
+              actions.push(
+                `<button type="button" class="secondary" data-rule-action="deactivate" data-id="${rule.id}">Deactivate</button>`,
+              );
+            } else {
+              actions.push(
+                `<button type="button" class="secondary" data-rule-action="activate" data-id="${rule.id}">Activate</button>`,
+              );
+            }
+            actions.push(
+              `<button type="button" class="danger" data-rule-action="delete" data-id="${rule.id}">Delete</button>`,
+            );
+          }
+          return `<tr>
+            <td>${DAY_NAMES[rule.dayOfWeek]}</td>
+            <td>${escapeHtml(rule.startTime)} - ${escapeHtml(rule.endTime)}</td>
+            <td>${escapeHtml(rule.timezone || '—')}</td>
+            <td><span class="status ${rule.isActive ? 'active' : 'inactive'}">${rule.isActive ? 'ACTIVE' : 'INACTIVE'}</span></td>
+            <td><div class="actions">${actions.join('')}</div></td>
+          </tr>`;
+        });
+      }
+
+      async function loadExceptions(resourceId) {
+        els.exceptionsState.hidden = false;
+        els.exceptionsState.className = 'loading';
+        els.exceptionsState.textContent = 'Loading exceptions…';
+        els.exceptionsWrap.hidden = true;
+
+        try {
+          const result = await api(`${availabilityBase(resourceId)}/exceptions`);
+          state.exceptions = result.data || [];
+          renderExceptions();
+        } catch (error) {
+          els.exceptionsState.className = 'error-state';
+          els.exceptionsState.textContent =
+            error.message || 'Failed to load exceptions.';
+        }
+      }
+
+      function renderExceptions() {
+        if (!state.exceptions.length) {
+          els.exceptionsState.className = 'empty';
+          els.exceptionsState.textContent = 'No exceptions configured.';
+          els.exceptionsWrap.hidden = true;
+          return;
+        }
+
+        els.exceptionsRows.innerHTML = state.exceptions
+          .map((item) => {
+            const actions = [];
+            if (state.canMutate) {
+              actions.push(
+                `<button type="button" class="secondary" data-exception-action="edit" data-id="${item.id}">Edit</button>`,
+              );
+              actions.push(
+                `<button type="button" class="danger" data-exception-action="delete" data-id="${item.id}">Delete</button>`,
+              );
+            }
+            const typeClass =
+              item.exceptionType === 'AVAILABLE' ? 'available' : 'unavailable';
+            const dateLabel = new Date(`${item.exceptionDate}T00:00:00`).toLocaleDateString(
+              undefined,
+              { year: 'numeric', month: 'short', day: 'numeric' },
+            );
+            return `<tr>
+              <td>${escapeHtml(dateLabel)}</td>
+              <td>${escapeHtml(item.startTime)}-${escapeHtml(item.endTime)}</td>
+              <td><span class="type-pill ${typeClass}">${escapeHtml(item.exceptionType)}</span></td>
+              <td>${escapeHtml(item.reason || '—')}</td>
+              <td><div class="actions">${actions.join('')}</div></td>
+            </tr>`;
+          })
+          .join('');
+
+        els.exceptionsState.hidden = true;
+        els.exceptionsWrap.hidden = false;
+      }
+
+      function openRuleCreate() {
+        els.ruleFormTitle.textContent = 'Add schedule';
+        els.ruleEditId.value = '';
+        els.ruleDay.value = '1';
+        els.ruleStart.value = '09:00';
+        els.ruleEnd.value = '18:00';
+        els.ruleTimezone.value = '';
+        els.ruleMetadata.value = '{\n  \n}';
+        els.ruleFormMessage.textContent = '';
+        els.ruleDialog.showModal();
+      }
+
+      function openRuleEdit(id) {
+        const rule = state.rules.find((item) => item.id === id);
+        if (!rule) return;
+        els.ruleFormTitle.textContent = 'Edit schedule';
+        els.ruleEditId.value = rule.id;
+        els.ruleDay.value = String(rule.dayOfWeek);
+        els.ruleStart.value = rule.startTime;
+        els.ruleEnd.value = rule.endTime;
+        els.ruleTimezone.value = rule.timezone || '';
+        els.ruleMetadata.value = JSON.stringify(rule.metadata || {}, null, 2);
+        els.ruleFormMessage.textContent = '';
+        els.ruleDialog.showModal();
+      }
+
+      function openExceptionCreate() {
+        els.exceptionFormTitle.textContent = 'Add exception';
+        els.exceptionEditId.value = '';
+        els.exceptionDate.value = '';
+        els.exceptionStart.value = '09:00';
+        els.exceptionEnd.value = '17:00';
+        els.exceptionType.value = 'UNAVAILABLE';
+        els.exceptionReason.value = '';
+        els.exceptionFormMessage.textContent = '';
+        els.exceptionDialog.showModal();
+      }
+
+      function openExceptionEdit(id) {
+        const item = state.exceptions.find((row) => row.id === id);
+        if (!item) return;
+        els.exceptionFormTitle.textContent = 'Edit exception';
+        els.exceptionEditId.value = item.id;
+        els.exceptionDate.value = item.exceptionDate;
+        els.exceptionStart.value = item.startTime;
+        els.exceptionEnd.value = item.endTime;
+        els.exceptionType.value = item.exceptionType;
+        els.exceptionReason.value = item.reason || '';
+        els.exceptionFormMessage.textContent = '';
+        els.exceptionDialog.showModal();
+      }
+
+      function parseMetadataField(raw) {
+        const trimmed = raw.trim();
+        if (!trimmed) return {};
+        const metadata = JSON.parse(trimmed);
+        if (
+          typeof metadata !== 'object' ||
+          metadata === null ||
+          Array.isArray(metadata)
+        ) {
+          throw new Error('Metadata must be a JSON object');
+        }
+        return metadata;
       }
 
       async function mutate(path, method, body) {
@@ -746,6 +1227,154 @@
         }, 250);
       }
 
+      document.querySelectorAll('.tabs button').forEach((button) => {
+        button.addEventListener('click', () => setDetailTab(button.dataset.tab));
+      });
+
+      els.addRuleBtn.addEventListener('click', openRuleCreate);
+      els.addExceptionBtn.addEventListener('click', openExceptionCreate);
+
+      els.rulesRows.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-rule-action]');
+        if (!button || !state.detailResourceId) return;
+        const { ruleAction, id } = button.dataset;
+        const base = `${availabilityBase(state.detailResourceId)}/rules/${id}`;
+        try {
+          if (ruleAction === 'edit') return openRuleEdit(id);
+          if (ruleAction === 'activate') {
+            await api(`${base}/activate`, { method: 'PATCH' });
+            showToast('Rule activated.', 'success');
+          } else if (ruleAction === 'deactivate') {
+            await api(`${base}/deactivate`, { method: 'PATCH' });
+            showToast('Rule deactivated.', 'success');
+          } else if (ruleAction === 'delete') {
+            if (!confirm('Delete this schedule rule?')) return;
+            await api(base, { method: 'DELETE' });
+            showToast('Rule deleted.', 'success');
+          }
+          await loadRules(state.detailResourceId);
+        } catch (error) {
+          showToast(error.message, 'error');
+        }
+      });
+
+      els.exceptionsRows.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-exception-action]');
+        if (!button || !state.detailResourceId) return;
+        const { exceptionAction, id } = button.dataset;
+        const base = `${availabilityBase(state.detailResourceId)}/exceptions/${id}`;
+        try {
+          if (exceptionAction === 'edit') return openExceptionEdit(id);
+          if (exceptionAction === 'delete') {
+            if (!confirm('Delete this exception?')) return;
+            await api(base, { method: 'DELETE' });
+            showToast('Exception deleted.', 'success');
+            await loadExceptions(state.detailResourceId);
+          }
+        } catch (error) {
+          showToast(error.message, 'error');
+        }
+      });
+
+      els.ruleForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!state.detailResourceId) return;
+        els.ruleFormMessage.textContent = '';
+        els.ruleSaveBtn.disabled = true;
+
+        let metadata = {};
+        try {
+          metadata = parseMetadataField(els.ruleMetadata.value);
+        } catch (error) {
+          els.ruleFormMessage.className = 'message error';
+          els.ruleFormMessage.textContent = error.message || 'Invalid metadata JSON';
+          els.ruleSaveBtn.disabled = false;
+          return;
+        }
+
+        const editId = els.ruleEditId.value;
+        const payload = {
+          dayOfWeek: Number(els.ruleDay.value),
+          startTime: els.ruleStart.value,
+          endTime: els.ruleEnd.value,
+          timezone: els.ruleTimezone.value.trim() || (editId ? null : undefined),
+          metadata,
+        };
+
+        try {
+          const base = `${availabilityBase(state.detailResourceId)}/rules`;
+          if (editId) {
+            await api(`${base}/${editId}`, {
+              method: 'PATCH',
+              body: JSON.stringify(payload),
+            });
+            showToast('Schedule updated.', 'success');
+          } else {
+            await api(base, {
+              method: 'POST',
+              body: JSON.stringify(payload),
+            });
+            showToast('Schedule created.', 'success');
+          }
+          els.ruleDialog.close();
+          await loadRules(state.detailResourceId);
+        } catch (error) {
+          els.ruleFormMessage.className = 'message error';
+          els.ruleFormMessage.textContent = error.message || 'Save failed';
+        } finally {
+          els.ruleSaveBtn.disabled = false;
+        }
+      });
+
+      els.exceptionForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!state.detailResourceId) return;
+        els.exceptionFormMessage.textContent = '';
+        els.exceptionSaveBtn.disabled = true;
+
+        const payload = {
+          exceptionDate: els.exceptionDate.value,
+          startTime: els.exceptionStart.value,
+          endTime: els.exceptionEnd.value,
+          exceptionType: els.exceptionType.value,
+          reason: els.exceptionReason.value.trim() || null,
+        };
+
+        try {
+          const editId = els.exceptionEditId.value;
+          const base = `${availabilityBase(state.detailResourceId)}/exceptions`;
+          if (editId) {
+            await api(`${base}/${editId}`, {
+              method: 'PATCH',
+              body: JSON.stringify(payload),
+            });
+            showToast('Exception updated.', 'success');
+          } else {
+            await api(base, {
+              method: 'POST',
+              body: JSON.stringify(payload),
+            });
+            showToast('Exception created.', 'success');
+          }
+          els.exceptionDialog.close();
+          await loadExceptions(state.detailResourceId);
+        } catch (error) {
+          els.exceptionFormMessage.className = 'message error';
+          els.exceptionFormMessage.textContent = error.message || 'Save failed';
+        } finally {
+          els.exceptionSaveBtn.disabled = false;
+        }
+      });
+
+      document.getElementById('cancel-rule-form').addEventListener('click', () => {
+        els.ruleDialog.close();
+      });
+      document
+        .getElementById('cancel-exception-form')
+        .addEventListener('click', () => {
+          els.exceptionDialog.close();
+        });
+
       els.search.addEventListener('input', scheduleReload);
       els.statusFilter.addEventListener('change', () => {
         state.page = 1;
@@ -772,6 +1401,7 @@
         } catch {
           /* ignore network errors on logout */
         }
+        localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
         window.location.href = '/signin.html';
       });

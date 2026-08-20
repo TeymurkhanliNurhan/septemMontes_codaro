@@ -68,6 +68,16 @@ async function bootstrap() {
         'REST API for organizations, resources, availability, and bookings',
       )
       .setVersion('1.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description:
+            'Paste accessToken from POST /auth/login into Authorize.',
+        },
+        'JWT-auth',
+      )
       .addCookieAuth(
         session.cookieName,
         {
@@ -76,13 +86,15 @@ async function bootstrap() {
           name: session.cookieName,
           description:
             'Set automatically by POST /auth/login. Swagger is same-origin, ' +
-            'so "Try it out" works once you have logged in.',
+            'so "Try it out" also works via cookie after login.',
         },
         'session',
       )
       .build();
 
-    SwaggerModule.setup('api', app, SwaggerModule.createDocument(app, config), {
+    const document = SwaggerModule.createDocument(app, config);
+    document.security = [{ 'JWT-auth': [] }, { session: [] }];
+    SwaggerModule.setup('api', app, document, {
       swaggerOptions: {
         persistAuthorization: true,
         tryItOutEnabled: true,

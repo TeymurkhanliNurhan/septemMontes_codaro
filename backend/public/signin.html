@@ -244,10 +244,11 @@
             throw new Error(detail);
           }
 
-          localStorage.setItem('user', JSON.stringify(data));
+          localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('user', JSON.stringify(data.user));
 
           message.className = 'message success';
-          message.textContent = `Welcome, ${data.name}. Redirecting…`;
+          message.textContent = `Welcome, ${data.user.name}. Redirecting…`;
           window.location.href = '/resources.html';
         } catch (error) {
           message.className = 'message error';
