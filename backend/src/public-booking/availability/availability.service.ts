@@ -103,7 +103,11 @@ export class AvailabilityService {
         id: In(links.map((link) => link.resourceId)),
         status: ResourceStatus.ACTIVE,
       },
-      order: { name: 'ASC' },
+      // `id` is a tiebreaker, not cosmetic: two resources can share a name
+      // ("Studio", "Alex"), and this list feeds FOR UPDATE lock acquisition
+      // downstream. An unstable order between concurrent transactions on a
+      // tied name is a deadlock ingredient, so the order must be total.
+      order: { name: 'ASC', id: 'ASC' },
     });
   }
 
