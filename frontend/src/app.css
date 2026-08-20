@@ -1,6 +1,115 @@
 @import 'tailwindcss';
+
+/**
+ * Septem Funeral.
+ *
+ * Nobody arrives here by choice, so the interface never sells. There are no
+ * accent-coloured calls to action, no urgency, no badges counting anything
+ * down. The palette is warm paper and ink with a single muted sage for the
+ * few things that genuinely need to be found; type is serif at every size
+ * that carries a name, because a name should not be set in the same face as
+ * a form label.
+ */
 @plugin 'daisyui' {
-	themes:
-		light --default,
-		dark --prefersdark;
+	themes: septem --default;
+}
+
+@plugin 'daisyui/theme' {
+	name: 'septem';
+	default: true;
+	prefersdark: false;
+	color-scheme: light;
+
+	--color-base-100: oklch(97.5% 0.008 85);
+	--color-base-200: oklch(94.5% 0.01 85);
+	--color-base-300: oklch(90% 0.012 85);
+	--color-base-content: oklch(27% 0.015 60);
+
+	--color-primary: oklch(42% 0.03 155);
+	--color-primary-content: oklch(97% 0.008 85);
+	--color-secondary: oklch(55% 0.02 60);
+	--color-secondary-content: oklch(97% 0.008 85);
+	--color-accent: oklch(60% 0.05 60);
+	--color-accent-content: oklch(97% 0.008 85);
+	--color-neutral: oklch(32% 0.012 60);
+	--color-neutral-content: oklch(96% 0.008 85);
+
+	--color-info: oklch(55% 0.04 240);
+	--color-info-content: oklch(97% 0.008 85);
+	--color-success: oklch(50% 0.05 155);
+	--color-success-content: oklch(97% 0.008 85);
+	--color-warning: oklch(62% 0.08 75);
+	--color-warning-content: oklch(20% 0.02 75);
+	--color-error: oklch(48% 0.1 25);
+	--color-error-content: oklch(97% 0.008 85);
+
+	--radius-selector: 0.25rem;
+	--radius-field: 0.25rem;
+	--radius-box: 0.375rem;
+	--size-selector: 0.25rem;
+	--size-field: 0.28rem;
+	--border: 1px;
+	--depth: 0;
+	--noise: 0;
+}
+
+@theme {
+	--font-serif:
+		'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, Palatino, Georgia, serif;
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+body {
+	font-feature-settings:
+		'liga' 1,
+		'kern' 1;
+	-webkit-font-smoothing: antialiased;
+}
+
+/**
+ * A name, a date, a heading: anything that stands for a person or a moment.
+ * Applied by class rather than to `h1`-`h6` so form legends and table headers
+ * stay in the UI face.
+ */
+.display {
+	font-family: var(--font-serif);
+	font-weight: 400;
+	letter-spacing: -0.011em;
+}
+
+/** Small caps label above a section. Quiet, and never bold. */
+.eyebrow {
+	font-size: 0.6875rem;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	opacity: 0.55;
+}
+
+/** The rule under a section heading. Hairline, not a divider component. */
+.hairline {
+	border-bottom: 1px solid color-mix(in oklch, var(--color-base-content) 12%, transparent);
+}
+
+/**
+ * Nothing on this site should snap. Every state change a family sees is
+ * eased, and the whole thing yields to `prefers-reduced-motion`.
+ */
+@media (prefers-reduced-motion: no-preference) {
+	.settle {
+		animation: settle 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+	}
+}
+
+@keyframes settle {
+	from {
+		opacity: 0;
+		transform: translateY(0.375rem);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
 }

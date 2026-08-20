@@ -4,6 +4,6 @@
 	let { children }: { children: Snippet } = $props();
 </script>
 
-<main class="mx-auto w-full max-w-4xl px-4 py-8">
+<div class="mx-auto w-full max-w-5xl px-5 py-10">
 	{@render children()}
-</main>
+</div>
