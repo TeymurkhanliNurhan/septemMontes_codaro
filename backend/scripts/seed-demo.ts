@@ -28,7 +28,9 @@ const WORKDAY_END = '17:00:00';
  * the same value — `chk_resources_organization_match` (added in
  * `20260821120000-ResourceOrganizationCheck.ts`) rejects anything else.
  */
-async function ensureOrganization(dataSource: DataSource): Promise<Organization> {
+async function ensureOrganization(
+  dataSource: DataSource,
+): Promise<Organization> {
   const repo = dataSource.getRepository(Organization);
   const existing = await repo.findOne({ where: { slug: ORG_SLUG } });
   if (existing) {
@@ -159,12 +161,16 @@ async function main(): Promise<void> {
 
     const roomA = await ensureResource(dataSource, organization.id, 'Room A');
     const roomB = await ensureResource(dataSource, organization.id, 'Room B');
-    console.log(`Resources: ${roomA.name} (${roomA.id}), ${roomB.name} (${roomB.id})`);
+    console.log(
+      `Resources: ${roomA.name} (${roomA.id}), ${roomB.name} (${roomB.id})`,
+    );
 
     for (const resource of [roomA, roomB]) {
       await ensureAvailabilityRules(dataSource, resource.id);
     }
-    console.log('Availability rules: weekdays 1-5, 09:00-17:00 on both resources');
+    console.log(
+      'Availability rules: weekdays 1-5, 09:00-17:00 on both resources',
+    );
 
     const consultation = await ensureService(
       dataSource,
