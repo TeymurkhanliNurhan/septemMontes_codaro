@@ -343,6 +343,7 @@ export class ServiceService {
       bufferBeforeMinutes: entity.bufferBeforeMinutes,
       bufferAfterMinutes: entity.bufferAfterMinutes,
       isActive: entity.isActive,
+      resourceSelectionMode: entity.resourceSelectionMode,
       metadata: entity.metadata ?? {},
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),

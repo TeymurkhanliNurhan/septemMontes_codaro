@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsObject,
@@ -11,6 +13,7 @@ import {
   Validate,
   ValidateIf,
 } from 'class-validator';
+import { ResourceSelectionMode } from '../../common/enums/resource-selection-mode.enum';
 import { IsPlainObjectConstraint } from '../../resource/dto/create-resource.dto';
 
 export class CreateServiceDto {
@@ -80,6 +83,16 @@ export class CreateServiceDto {
   @IsInt()
   @Min(0)
   bufferAfterMinutes?: number;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ enum: ResourceSelectionMode })
+  @IsOptional()
+  @IsEnum(ResourceSelectionMode)
+  resourceSelectionMode?: ResourceSelectionMode;
 
   @ApiPropertyOptional({
     type: 'object',

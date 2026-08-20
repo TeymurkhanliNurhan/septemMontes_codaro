@@ -22,7 +22,8 @@
     "migration:create": "ts-node ./node_modules/typeorm/cli.js migration:create ./src/migrations/NewMigration",
     "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run -d ./ormconfig.ts",
     "migration:revert": "ts-node ./node_modules/typeorm/cli.js migration:revert -d ./ormconfig.ts",
-    "auth:set-password": "ts-node ./scripts/set-password.ts"
+    "auth:set-password": "ts-node ./scripts/set-password.ts",
+    "seed:demo": "ts-node ./scripts/seed-demo.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -37,6 +38,7 @@
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
+    "luxon": "^3.7.2",
     "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
@@ -55,6 +57,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
+    "@types/luxon": "^3.7.4",
     "@types/node": "^22.10.7",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^6.0.2",

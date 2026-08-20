@@ -1,0 +1,329 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { DateTime } from 'luxon';
+import { DataSource, EntityManager } from 'typeorm';
+import { Booking } from '../../booking/entities/booking.entity';
+import { BookingEvent } from '../../booking-event/entities/booking-event.entity';
+import { BookingResource } from '../../booking-resource/entities/booking-resource.entity';
+import { BookingEventType } from '../../common/enums/booking-event-type.enum';
+import { BookingStatus } from '../../common/enums/booking-status.enum';
+import { ResourceSelectionMode } from '../../common/enums/resource-selection-mode.enum';
+import { Customer } from '../../customer/entities/customer.entity';
+import { Organization } from '../../organization/entities/organization.entity';
+import { Resource } from '../../resource/entities/resource.entity';
+import { Service } from '../../service/entities/service.entity';
+import {
+  AvailabilityService,
+  SlotSearch,
+} from '../availability/availability.service';
+import {
+  CreatePublicBookingDto,
+  PublicCustomerDto,
+} from '../dto/create-public-booking.dto';
+import { PublicBookingResponseDto } from '../dto/public-booking-response.dto';
+
+const MINUTE_MS = 60_000;
+
+/**
+ * The only write path on the unauthenticated API.
+ *
+ * Two rules govern everything here:
+ *
+ * - **Nothing is trusted but the slug.** The organization comes from the URL,
+ *   and the service is re-resolved inside it. `AvailabilityService` scopes
+ *   `capableResources` by organization (its `where` clause carries the org
+ *   id) but `isSlotFree` answers for a single resource id with no scope, so
+ *   this service still never lets a request-supplied id reach it unchecked.
+ * - **Availability is re-derived under a row lock, on this transaction's own
+ *   connection.** The slot list a browser is holding may be seconds stale, so
+ *   `claimResource` locks the row and asks again — handing `isSlotFree` this
+ *   transaction's `EntityManager` so the re-check reads the snapshot the lock
+ *   protects instead of checking out a second connection from a pool of ten.
+ */
+@Injectable()
+export class PublicBookingService {
+  constructor(
+    private readonly availability: AvailabilityService,
+    private readonly dataSource: DataSource,
+  ) {}
+
+  async create(
+    slug: string,
+    dto: CreatePublicBookingDto,
+  ): Promise<PublicBookingResponseDto> {
+    const startsAt = Date.parse(dto.startsAt);
+    if (Number.isNaN(startsAt)) {
+      throw new BadRequestException('startsAt is not a valid instant');
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      const organization = await manager.findOne(Organization, {
+        where: { slug },
+      });
+      if (!organization) throw new NotFoundException('Organization not found');
+
+      const service = await manager.findOne(Service, {
+        where: { id: dto.serviceId, organizationId: organization.id },
+      });
+      if (!service || !service.isActive) {
+        throw new NotFoundException('Service not found');
+      }
+
+      const candidates = await this.candidates(
+        manager,
+        organization.id,
+        service,
+        dto.resourceId,
+      );
+      const search = this.searchFor(organization, service, startsAt);
+      const resource = await this.claimResource(
+        manager,
+        candidates,
+        startsAt,
+        search,
+      );
+
+      const customer = await this.upsertCustomer(
+        manager,
+        organization.id,
+        dto.customer,
+      );
+
+      const endsAt = new Date(startsAt + service.durationMinutes * MINUTE_MS);
+      const booking = await manager.save(Booking, {
+        organizationId: organization.id,
+        customerId: customer.id,
+        serviceId: service.id,
+        createdByUserId: null,
+        startsAt: new Date(startsAt),
+        endsAt,
+        status: BookingStatus.PENDING,
+        title: service.name,
+        notes: dto.notes ?? null,
+        metadata: {},
+      });
+
+      await manager.insert(BookingResource, {
+        bookingId: booking.id,
+        resourceId: resource.id,
+      });
+
+      await manager.save(BookingEvent, {
+        bookingId: booking.id,
+        actorUserId: null,
+        eventType: BookingEventType.CREATED,
+        payload: { source: 'public' },
+      });
+
+      return {
+        bookingId: booking.id,
+        startsAt: new Date(startsAt).toISOString(),
+        endsAt: endsAt.toISOString(),
+        status: BookingStatus.PENDING,
+        serviceName: service.name,
+        resourceName: resource.name,
+      };
+    });
+  }
+
+  /**
+   * Resources that may serve this booking, best first.
+   *
+   * `capableResources` is organization-scoped in its where clause, and this
+   * service passes the organization it resolved from the slug — a requested
+   * id that belongs to another organization is invisible to the query, so it
+   * must look exactly like one that does not exist. Under CUSTOMER_CHOICE a
+   * requested resource is the only candidate; under AUTO it is merely
+   * preferred, and the rest remain as fallbacks.
+   */
+  private async candidates(
+    manager: EntityManager,
+    organizationId: string,
+    service: Service,
+    requestedResourceId?: string,
+  ): Promise<Resource[]> {
+    // Manager for the same reason `claimResource` passes one: without it these
+    // two queries open a second pooled connection while this transaction holds
+    // the first, which is enough to wedge a pool of ten under concurrent load
+    // even though no row lock has been taken yet.
+    const capable = await this.availability.capableResources(
+      service.id,
+      organizationId,
+      manager,
+    );
+
+    // No candidates at all is a configuration problem, not contention. Saying
+    // "that time was just taken" would invite the guest to retry a service
+    // that no resource can ever perform.
+    if (capable.length === 0) {
+      throw new NotFoundException('This service is not currently bookable');
+    }
+
+    if (!requestedResourceId) return capable;
+
+    const requested = capable.find(
+      (resource) => resource.id === requestedResourceId,
+    );
+    if (!requested) throw new NotFoundException('Resource not found');
+
+    if (
+      service.resourceSelectionMode === ResourceSelectionMode.CUSTOMER_CHOICE
+    ) {
+      return [requested];
+    }
+    return [
+      requested,
+      ...capable.filter((resource) => resource.id !== requested.id),
+    ];
+  }
+
+  /**
+   * Locks every candidate up front, then re-derives availability for that
+   * instant in preference order.
+   *
+   * The lock is the serialisation point: a competing transaction holding it has
+   * either committed its booking — visible to the re-check that follows — or
+   * rolled back. Checking availability without the lock, or holding the lock
+   * without re-checking, both allow two consumers to claim one slot.
+   *
+   * The locks are taken in a single `ORDER BY resource.id` statement so that
+   * every transaction acquires these rows in the same order. Locking in
+   * preference order instead would let a guest who named `r-2` acquire
+   * `[r-2, r-1]` while a guest who named nothing acquires `[r-1, r-2]`; if both
+   * first choices are busy that is an ABBA cycle, which Postgres breaks by
+   * aborting one with 40P01 — a 500 for that guest rather than a retryable 409,
+   * after both have waited out `deadlock_timeout`.
+   *
+   * Note what this costs on the happy path, not just under contention: the
+   * transaction now locks *every* candidate even when the first one is free,
+   * where before it locked exactly one. Under AUTO that is the whole capable
+   * set on every request, so two guests booking the same service at completely
+   * unrelated times serialize on each other. Under CUSTOMER_CHOICE the list is
+   * a singleton and nothing changed. The trade is deliberate — deadlock-free
+   * and serialized beats fast and occasionally 500 — and at single-digit
+   * resources per service the breadth costs nothing measurable. If throughput
+   * ever matters, `FOR UPDATE SKIP LOCKED` is the escape hatch, at the price of
+   * turning "another transaction is mid-flight on this row" into a spurious
+   * 409.
+   *
+   * Residual, deliberately not fixed here: the availability re-derivations
+   * still run one per candidate with every lock held, so a service with many
+   * resources at a fully-booked instant holds them all for the duration of N
+   * derivations. Capping the candidate list would silently make some resources
+   * unbookable, which is worse; this is recorded as an open item instead.
+   */
+  private async claimResource(
+    manager: EntityManager,
+    candidates: Resource[],
+    startsAt: number,
+    search: SlotSearch,
+  ): Promise<Resource> {
+    // Unreachable today — `candidates` rejects an empty capable set before this
+    // runs — but kept so no future change can reach the `IN ()` below, which is
+    // a syntax error rather than an empty result. It mirrors the reachable
+    // guard deliberately: no candidates means the service is not bookable, not
+    // that this instant was taken, so it must not invite a retry either.
+    if (candidates.length === 0) {
+      throw new NotFoundException('This service is not currently bookable');
+    }
+
+    await manager
+      .createQueryBuilder(Resource, 'resource')
+      .setLock('pessimistic_write')
+      .where('resource.id IN (:...ids)', {
+        ids: candidates.map((candidate) => candidate.id),
+      })
+      .orderBy('resource.id', 'ASC')
+      .getMany();
+
+    for (const candidate of candidates) {
+      // The manager is not optional in practice: without it the re-check runs
+      // on a second pool connection while this transaction holds the first, so
+      // it cannot see this snapshot and, with pool max 10 and no connection
+      // timeout, wedges under concurrent load instead of erroring.
+      const free = await this.availability.isSlotFree(
+        candidate.id,
+        startsAt,
+        search,
+        manager,
+      );
+      if (free) return candidate;
+    }
+
+    throw new ConflictException('That time was just taken');
+  }
+
+  /**
+   * The local day the requested instant falls on, in the organization's
+   * timezone. `isSlotFree` narrows this range itself, so `from`/`to` describe
+   * the instant rather than bound the work; `notBefore: now` is what keeps a
+   * past instant unbookable.
+   *
+   * An unresolvable `organizations.timezone` falls back to the UTC date rather
+   * than throwing — the column is free text with no CHECK constraint, and a bad
+   * one must not turn a guest's booking into a 500.
+   */
+  private searchFor(
+    organization: Organization,
+    service: Service,
+    startsAt: number,
+  ): SlotSearch {
+    const local = DateTime.fromMillis(startsAt, {
+      zone: organization.timezone,
+    });
+    const date = local.isValid
+      ? local.toFormat('yyyy-MM-dd')
+      : new Date(startsAt).toISOString().slice(0, 10);
+
+    return {
+      service,
+      organizationId: organization.id,
+      organizationTimezone: organization.timezone,
+      from: date,
+      to: date,
+      now: Date.now(),
+    };
+  }
+
+  /**
+   * Matches on `(organizationId, lowercased email)`, the same normalisation the
+   * auth code applies. A repeat guest keeps one row and the newest details they
+   * gave; an omitted phone leaves the stored one alone rather than erasing it.
+   *
+   * The match is `LOWER(email)` rather than an equality against the normalised
+   * literal, because normalisation is only enforced on this side: the staff
+   * `CreateCustomerDto` has no `@IsEmail()` and no `@NormalizeEmail()`, so a
+   * row created in the admin panel as `Ada@Example.com` is stored verbatim. An
+   * equality would miss it and hand a returning guest a duplicate customer row.
+   */
+  private async upsertCustomer(
+    manager: EntityManager,
+    organizationId: string,
+    input: PublicCustomerDto,
+  ): Promise<Customer> {
+    const email = input.email.trim().toLowerCase();
+
+    const existing = await manager
+      .createQueryBuilder(Customer, 'customer')
+      .where('customer.organization_id = :organizationId', { organizationId })
+      .andWhere('LOWER(customer.email) = :email', { email })
+      .getOne();
+    if (existing) {
+      existing.name = input.name;
+      if (input.phone !== undefined) existing.phone = input.phone;
+      return manager.save(Customer, existing);
+    }
+
+    return manager.save(Customer, {
+      organizationId,
+      name: input.name,
+      email,
+      phone: input.phone ?? null,
+      metadata: {},
+    });
+  }
+}

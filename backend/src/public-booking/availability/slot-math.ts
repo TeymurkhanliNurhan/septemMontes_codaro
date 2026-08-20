@@ -1,0 +1,116 @@
+import {
+  expandInterval,
+  Interval,
+  mergeIntervals,
+  subtractIntervals,
+} from './interval';
+
+export interface SlotInput {
+  /** Availability windows, already resolved against rules and exceptions. */
+  windows: Interval[];
+  /** Raw busy intervals from existing bookings, before buffers. */
+  busy: Interval[];
+  durationMs: number;
+  bufferBeforeMs: number;
+  bufferAfterMs: number;
+  /** Slots starting before this instant are discarded. */
+  notBefore: number;
+}
+
+export interface MergedSlot {
+  start: number;
+  end: number;
+  resourceIds: string[];
+}
+
+/**
+ * Availability windows minus buffer-expanded busy intervals: the free time
+ * actually left to book. Busy intervals are widened by the service buffers
+ * before being removed, so a booking blocks the padding around it as well
+ * as its own span.
+ *
+ * Single source of truth for "what is free" — `computeSlots` steps this
+ * into a grid, and `AvailabilityService.isSlotFree` checks containment
+ * directly against it. Splitting the free-interval computation out of
+ * `computeSlots` keeps those two callers from drifting into disagreement:
+ * one still advertises what the other still accepts.
+ */
+export function computeFreeIntervals(
+  windows: Interval[],
+  busy: Interval[],
+  bufferBeforeMs: number,
+  bufferAfterMs: number,
+): Interval[] {
+  const blocked = busy.map((interval) =>
+    expandInterval(interval, bufferBeforeMs, bufferAfterMs),
+  );
+  return subtractIntervals(mergeIntervals(windows), blocked);
+}
+
+/**
+ * Turns availability windows into bookable slots for a single resource.
+ * Busy intervals are widened by the service buffers before being removed, so
+ * a booking blocks the padding around it as well as its own span.
+ */
+export function computeSlots(input: SlotInput): Interval[] {
+  // Guard against misconfigured duration that would cause infinite loops.
+  // A zero duration causes the stepping loop to never advance; a negative
+  // duration walks backwards infinitely. Both crash the server. DB constraints
+  // and DTOs should prevent this, but this layer owns the loop and should own
+  // the guard — TypeORM drops CHECK constraints if not in entity metadata.
+  // Return empty (no availability) rather than throwing, so a bad config
+  // degrades to "nothing bookable" on a public endpoint instead of a 500.
+  if (input.durationMs <= 0) return [];
+
+  const free = computeFreeIntervals(
+    input.windows,
+    input.busy,
+    input.bufferBeforeMs,
+    input.bufferAfterMs,
+  );
+  const slots: Interval[] = [];
+
+  for (const window of free) {
+    for (
+      let start = window.start;
+      start + input.durationMs <= window.end;
+      start += input.durationMs
+    ) {
+      if (start >= input.notBefore) {
+        slots.push({ start, end: start + input.durationMs });
+      }
+    }
+  }
+
+  return slots.sort((a, b) => a.start - b.start);
+}
+
+/**
+ * Collapses per-resource slot lists into one list keyed by start instant.
+ * A slot free on three resources appears once, carrying all three ids, so the
+ * consumer sees availability rather than inventory.
+ */
+export function mergeResourceSlots(
+  perResource: Array<{ resourceId: string; slots: Interval[] }>,
+): MergedSlot[] {
+  const byStart = new Map<number, MergedSlot>();
+
+  for (const { resourceId, slots } of perResource) {
+    for (const slot of slots) {
+      const existing = byStart.get(slot.start);
+      if (existing) {
+        if (!existing.resourceIds.includes(resourceId)) {
+          existing.resourceIds.push(resourceId);
+        }
+      } else {
+        byStart.set(slot.start, {
+          start: slot.start,
+          end: slot.end,
+          resourceIds: [resourceId],
+        });
+      }
+    }
+  }
+
+  return [...byStart.values()].sort((a, b) => a.start - b.start);
+}

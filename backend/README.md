@@ -72,7 +72,8 @@ database dump alone cannot be replayed.
 | `DELETE /auth/sessions?id=` | Revoke one session |
 | `POST /auth/change-password` | Change your own password; signs other devices out |
 
-`GET /health`, `POST /auth/login`, and `POST /auth/register` are public.
+`GET /health`, `POST /auth/login`, `POST /auth/register`, and the `/public/*`
+booking routes (below) are the only public routes.
 
 ### Creating the first user
 
@@ -125,6 +126,44 @@ change their own role, or delete their own account. Every write is scoped to
 the caller's organization — the organization is taken from the session and is
 rejected if it appears in a request body.
 
+## Public booking
+
+The only unauthenticated **business** routes, all under `/public` and scoped by
+organization slug. Every other business route sits behind the session guard.
+
+| Route | Purpose |
+|-------|---------|
+| `GET /public/orgs/:slug` | Organization name, slug, and timezone |
+| `GET /public/orgs/:slug/services` | Active bookable services |
+| `GET /public/orgs/:slug/services/:serviceId/resources` | Choosable resources; **404 unless the service is `CUSTOMER_CHOICE`**, so staff names never leak for `AUTO` services |
+| `GET /public/orgs/:slug/services/:serviceId/slots?from=&to=&resourceId=` | Free slots for a 1–31 day date range |
+| `POST /public/orgs/:slug/bookings` | Book a slot as a guest; rate limited to 10/min/IP (`publicWrite` throttler; the read routes use the 300/min default) |
+
+Booking is transactional: the candidate resource rows are locked
+(`SELECT … FOR UPDATE`, id order), availability is re-derived on that snapshot,
+and the guest gets a `201` or a `409` — two simultaneous posts for one slot can
+never both succeed. Guest-created bookings are `PENDING` with no creator user.
+
+**Timezones.** `from`/`to` are calendar dates in the **organization's**
+timezone; slot instants come back as UTC ISO-8601 strings. An availability rule
+may override the zone with its own `timezone` column; exceptions always resolve
+in the organization's zone. DST gaps and overlaps are resolved deliberately
+(spring-forward shifts past the gap, fall-back spans the repeated hour).
+
+**`resource_selection_mode`.** `AUTO` — the system assigns a resource, and
+guests neither see nor choose one (`/resources` 404s). `CUSTOMER_CHOICE` —
+guests pick from `/resources` and may send that `resourceId` with the booking;
+under `AUTO` a sent `resourceId` is merely a preference with fallback.
+
+**Day-of-week convention.** `availability_rules.day_of_week` is **0 = Sunday
+through 6 = Saturday**, matching Postgres `EXTRACT(DOW)` and JavaScript
+`getDay()`. The admin panel's availability editor must use the same convention
+or weekly rules silently land one day off.
+
+```bash
+npm run seed:demo   # demo org (Europe/Istanbul), 2 rooms, 2 services, weekday rules
+```
+
 ## Modules (dependency order)
 
 | Module | Route | Table |
@@ -142,6 +181,7 @@ rejected if it appears in a request body.
 | `booking-participant` | `/booking-participants` | `booking_participants` |
 | `booking-resource` | `/booking-resources` | `booking_resources` |
 | `service-resource` | `/service-resources` | `service_resources` |
+| `public-booking` | `/public` | — (reuses the tables above) |
 
 ## Enums
 
@@ -164,10 +204,20 @@ npm run migration:generate   # after entity changes
 - `src/migrations/20260820000000-InitialSchema.ts` — tables from the ERD
 - `src/migrations/20260820120000-AuthSessions.ts` — `users.password_hash` + `sessions`
 - `src/migrations/20260820140000-SeedSeptemMontesOrgAndNullableUserUpdatedAt.ts` — seed org + nullable `users.updated_at`
+- `src/migrations/20260821000000-ResourceSelectionMode.ts` — `services.resource_selection_mode` + CHECK
+- `src/migrations/20260821120000-ResourceOrganizationCheck.ts` — forces `resources.organization_id = organizations_id`
 
 ## Notes
 
 - Table names match the SQL ERD exactly (`snake_case`).
-- `resources` has both `organization_id` and `organizations_id` per the ERD.
+- `resources` has both `organization_id` and `organizations_id` per the ERD;
+  a CHECK constraint forces them equal.
 - Global guards: throttle, then session auth, then role-based `@Roles()`.
+- Throttler buckets are opt-in (`login`, `publicWrite`): the module defaults
+  must stay effectively unlimited, because every named throttler applies to
+  every route and `@Throttle` only overrides where it appears.
+- The exclusion constraint that would make `booking_resources` double-booking
+  impossible at the DB level is deliberately deferred — the guest booking path
+  already serializes on a row lock, and the staff path needs the same treatment
+  first (see the plan's "deliberately not built" list).
 - Services return response DTOs; extend `toDto()` mappers as you flesh out business logic.

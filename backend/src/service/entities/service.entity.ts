@@ -12,6 +12,7 @@ import {
 import { Organization } from '../../organization/entities/organization.entity';
 import { Booking } from '../../booking/entities/booking.entity';
 import { ServiceResource } from '../../service-resource/entities/service-resource.entity';
+import { ResourceSelectionMode } from '../../common/enums/resource-selection-mode.enum';
 
 @Entity('services')
 @Index('idx_services_organization_id', ['organizationId'])
@@ -47,6 +48,14 @@ export class Service {
 
   @Column({ type: 'boolean', name: 'is_active', default: true })
   isActive: boolean;
+
+  @Column({
+    type: 'varchar',
+    length: 50,
+    name: 'resource_selection_mode',
+    default: ResourceSelectionMode.AUTO,
+  })
+  resourceSelectionMode: ResourceSelectionMode;
 
   @Column({ type: 'jsonb', name: 'metadata', default: {} })
   metadata: Record<string, unknown>;
