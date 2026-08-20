@@ -822,7 +822,7 @@ Expected: FAIL — `Cannot find module './time-zone'`.
 `time-zone.ts`:
 
 ```ts
-import { DateTime } from 'luxon';
+import { DateTime, IANAZone } from 'luxon';
 
 /** How to resolve a local time that occurs twice on a DST fall-back day. */
 export type AmbiguityPreference = 'earliest' | 'latest';
@@ -868,9 +868,12 @@ export function eachLocalDate(from: string, to: string): string[] {
  *   02:30 resolves to 03:30 local. A window boundary therefore survives the
  *   gap rather than vanishing. Only a business open across 02:00 can reach
  *   this case at all. Pinned by test rather than assumed.
- * - **Ambiguous** (fall back). 02:30 occurs twice. Luxon returns the earlier
- *   offset. Callers pass 'latest' for a window's *end* so that a 09:00-17:00
- *   rule spans the repeated hour instead of closing early.
+ * - **Ambiguous** (fall back). 02:30 occurs twice. Luxon publishes NO
+ *   disambiguation guarantee: it lands on the earlier occurrence in northern
+ *   zones and the LATER one in ~13 southern ones (Sydney, Auckland, Lord
+ *   Howe, Santiago...). So both directions are probed explicitly. Callers
+ *   pass 'latest' for a window's *end* so a 09:00-17:00 rule spans the
+ *   repeated hour instead of closing early.
  */
 export function resolveLocal(
   date: string,
@@ -878,6 +881,13 @@ export function resolveLocal(
   zone: string,
   prefer: AmbiguityPreference = 'earliest',
 ): number {
+  // Luxon accepts 'local' and 'system' as zone names and silently resolves
+  // them to the API SERVER's timezone. IANAZone.isValidZone rejects both
+  // while still accepting 'utc', the organizations.timezone column default.
+  if (!IANAZone.isValidZone(zone)) {
+    throw new Error(`Unsupported timezone: ${zone}`);
+  }
+
   const local = `${date}T${normalizeTime(time)}`;
   const parsed = DateTime.fromISO(local, { zone });
 
@@ -887,14 +897,18 @@ export function resolveLocal(
     );
   }
 
+  const wall = parsed.toFormat(LOCAL_FORMAT);
   const millis = parsed.toMillis();
-  if (prefer === 'earliest') return millis;
 
-  // A later occurrence exists only if shifting forward by the offset delta
-  // renders to the same local string. Probe the shift sizes real zones use.
+  // Probe BOTH directions -- luxon's choice is zone-dependent, so 'earliest'
+  // cannot just return what it gave us. Compare against the resolved wall
+  // clock rather than the raw input, so a HH:mm:ss.SSS input still matches.
+  // [30, 60, 120] is the complete set of tzdb transition sizes for 2026-2035
+  // (30 = Lord Howe, 60 = the world, 120 = Antarctica/Troll).
+  const direction = prefer === 'latest' ? 1 : -1;
   for (const deltaMinutes of [30, 60, 120]) {
-    const candidate = millis + deltaMinutes * 60_000;
-    if (DateTime.fromMillis(candidate, { zone }).toFormat(LOCAL_FORMAT) === local) {
+    const candidate = millis + direction * deltaMinutes * 60_000;
+    if (DateTime.fromMillis(candidate, { zone }).toFormat(LOCAL_FORMAT) === wall) {
       return candidate;
     }
   }
@@ -936,7 +950,13 @@ cd backend && npx jest src/public-booking/availability/time-zone.spec.ts
 
 Expected: PASS, 14 tests.
 
-Every fixture above was verified against luxon before this plan was written: Berlin springs forward 2026-03-29 and falls back 2026-10-25, both Sundays, and Istanbul sits at UTC+3 year-round. If a DST test fails, suspect the implementation. To re-confirm the fixtures themselves:
+The Berlin and Istanbul fixtures were verified against luxon before this plan
+was written. **That verification was too narrow.** Berlin is a northern
+60-minute zone, and testing only northern zones hid a real defect: luxon
+returns the *later* occurrence for ambiguous times in 13 southern zones, so an
+unprobed `'earliest'` silently returned the wrong instant there. Add at least
+one southern-hemisphere and one 30-minute-shift assertion. To re-confirm any
+fixture: 
 
 ```bash
 cd backend && npx ts-node -e "const {DateTime}=require('luxon'); for (const d of ['2026-03-29T01:30','2026-03-29T03:30','2026-10-25T01:30','2026-10-25T03:30']) console.log(d, DateTime.fromISO(d,{zone:'Europe/Berlin'}).toISO());"
