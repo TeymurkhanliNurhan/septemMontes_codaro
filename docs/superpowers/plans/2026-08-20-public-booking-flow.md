@@ -2166,6 +2166,13 @@ stack on the anonymous surface, at 300/min per IP. Both parametrized routes now
 carry `ParseUUIDPipe` (400), and the Swagger declarations now cover the 400/404/429
 surface that the Task 12 generated client needs to type the error paths.
 
+**Task 15 — there is no single-service GET.** The five public routes are the org,
+the service list, resources, slots, and booking creation; the spec never defines
+`GET …/services/:serviceId`. The plan's Step 1 wording ("`+page.ts` fetches the
+service") cannot mean a direct fetch, so the loader fetches the list and derives
+the service by id, 404-ing one that is not on it. The list is what a guest page
+shows anyway, and this keeps Part 1's API surface untouched.
+
 ## Requirements consciously dropped
 
 **Grid alignment of `startsAt`.** The spec and Task 7's brief both required that

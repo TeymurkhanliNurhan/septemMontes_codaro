@@ -44,6 +44,11 @@ function localDateOf(instant: string, zone: string): string {
 	}).format(new Date(instant));
 }
 
+/** Today's calendar date in the given zone, for the week pager's floor. */
+export function todayInZone(zone: string): string {
+	return localDateOf(new Date().toISOString(), zone);
+}
+
 /**
  * Buckets slots by their local calendar date in the organization's zone, so
  * the grid renders one column per day with each slot on the day the consumer
