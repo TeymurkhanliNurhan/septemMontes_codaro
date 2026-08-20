@@ -1,8 +1,17 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { loadBoard, type BoardEntry } from '$lib/funeral/case-store';
-	import { STORAGE_LIMIT_DAYS } from '$lib/funeral/constraints';
-	import { formatDateInZone, formatInZone } from '$lib/time';
+	import { STORAGE_BAYS } from '$lib/funeral/bays';
+	import {
+		removeBoardEntry,
+		resetBoard,
+		seedBoardOnce,
+		updateBoardEntry,
+		type BoardEntry,
+		type BoardStep
+	} from '$lib/funeral/case-store';
+	import { STORAGE_LIMIT_DAYS, TRADITIONS } from '$lib/funeral/constraints';
+	import { committalSites, groupResources } from '$lib/funeral/inventory';
+	import { formatDateInZone, formatInZone, fromZonedInput, toZonedInput } from '$lib/time';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -12,6 +21,9 @@
 	 * Cases the home is carrying today. Seeded ones stand for the work already
 	 * in the building; anything the family flow confirmed is appended to them,
 	 * so a demonstration shows a board under load rather than an empty one.
+	 *
+	 * They are written onto the board once and then belong to it — a director
+	 * amends and removes them like any other case.
 	 */
 	function seeded(): BoardEntry[] {
 		const now = Date.now();
@@ -30,7 +42,14 @@
 				committalAt: at(28),
 				committalSite: 'Bródno Cemetery — plot',
 				awaitingThirdParty: false,
-				provisional: false
+				provisional: false,
+				steps: chainAround(
+					at(26),
+					at(28),
+					'Chapel of Rest',
+					'Hearse — Warsaw',
+					'Bródno Cemetery — plot'
+				)
 			},
 			{
 				reference: '2026-AN-042',
@@ -45,7 +64,14 @@
 				committalAt: at(8),
 				committalSite: 'Bródno Cemetery — plot',
 				awaitingThirdParty: true,
-				provisional: false
+				provisional: false,
+				steps: chainAround(
+					at(6),
+					at(8),
+					'Small Chapel',
+					'Hearse — Warsaw',
+					'Bródno Cemetery — plot'
+				)
 			},
 			{
 				reference: '2026-JW-507',
@@ -60,20 +86,52 @@
 				committalAt: at(20),
 				committalSite: 'Northern Crematorium — retort',
 				awaitingThirdParty: true,
-				provisional: true
+				provisional: true,
+				steps: chainAround(
+					at(18),
+					at(20),
+					'Chapel of Rest',
+					'Hearse — Reserve',
+					'Northern Crematorium — retort'
+				)
 			}
 		];
 	}
 
-	let board = $state<BoardEntry[]>([]);
+	/** The ordinary shape of a chain, hung off the two dates that matter. */
+	function chainAround(
+		serviceAt: string,
+		committalAt: string,
+		chapel: string,
+		hearse: string,
+		site: string
+	): BoardStep[] {
+		const service = Date.parse(serviceAt);
+		const span = (fromMs: number, minutes: number) => ({
+			startsAt: new Date(fromMs).toISOString(),
+			endsAt: new Date(fromMs + minutes * 60_000).toISOString()
+		});
+		return [
+			{
+				label: 'Preparation',
+				...span(service - 26 * 3_600_000, 120),
+				resourceName: 'Preparation Room'
+			},
+			{ label: 'Viewing', ...span(service - 2 * 3_600_000, 60), resourceName: chapel },
+			{ label: 'Service', ...span(service, 60), resourceName: chapel },
+			{ label: 'Transport', ...span(service + 60 * 60_000, 60), resourceName: hearse },
+			{ label: 'Committal', ...span(Date.parse(committalAt), 60), resourceName: site }
+		];
+	}
 
-	$effect(() => {
-		const confirmed = loadBoard();
-		// The family flow may have re-used a seeded bay; the board shows what was
-		// entered, and a clash is a thing for the director to see, not to hide.
-		const merged = [...seeded(), ...confirmed];
-		board = merged.sort((a, b) => Date.parse(a.committalAt) - Date.parse(b.committalAt));
-	});
+	// Derived rather than an effect so the board is there for the first paint
+	// in the browser, and written to directly whenever a director amends one.
+	let board = $derived.by(() => seedBoardOnce(seeded()));
+
+	/** Soonest committal first: the case the home is working on now is at the top. */
+	const cases = $derived(
+		[...board].sort((left, right) => Date.parse(left.committalAt) - Date.parse(right.committalAt))
+	);
 
 	/** Days already spent in the bay, against the limit of our care. */
 	function daysHeld(entry: BoardEntry): number {
@@ -87,29 +145,176 @@
 		return 'ok';
 	}
 
-	const bays = $derived.by(() =>
-		['Cold Storage Bay 1', 'Cold Storage Bay 2', 'Cold Storage Bay 3'].map((name) => ({
-			name,
-			// The earliest committal in that bay is the case the director is
-			// working on now; `board` is already sorted that way.
-			entry: board.find((candidate) => candidate.bayName === name)
-		}))
+	const bays = $derived(
+		STORAGE_BAYS.map((bay) => {
+			// `cases` is sorted by committal, so the first is the one leaving
+			// soonest. A second in the same bay is a clash, and the console says
+			// so rather than quietly rendering one of them.
+			const held = cases.filter((entry) => entry.bayName === bay.name);
+			return { name: bay.name, entry: held[0], clashes: held.length - 1 };
+		})
 	);
 
-	const awaiting = $derived(board.filter((entry) => entry.awaitingThirdParty));
-	const provisional = $derived(board.filter((entry) => entry.provisional));
+	const awaiting = $derived(cases.filter((entry) => entry.awaitingThirdParty));
+	const provisional = $derived(cases.filter((entry) => entry.provisional));
+	const baysFree = $derived(bays.filter((bay) => !bay.entry).length);
+	const nearingLimit = $derived(cases.filter((entry) => pressure(entry) !== 'ok').length);
+
+	const figures = $derived([
+		{ label: 'In our care', value: cases.length, tone: '' },
+		{ label: 'Bays free', value: baysFree, tone: baysFree === 0 ? 'text-error' : '' },
+		{ label: 'Waiting on a site', value: awaiting.length, tone: '' },
+		{
+			label: 'Nearing the limit',
+			value: nearingLimit,
+			tone: nearingLimit > 0 ? 'text-warning' : ''
+		}
+	]);
+
+	let opened = $state<string | undefined>(undefined);
+
+	function toggle(reference: string): void {
+		opened = opened === reference ? undefined : reference;
+	}
+
+	const inventoryGroups = $derived(groupResources(data.services));
+	const sites = $derived(committalSites(data.services));
+
+	/* Amending a case. */
+
+	interface EditForm {
+		reference: string;
+		decedentName: string;
+		arrangerName: string;
+		payerName: string;
+		traditionLabel: string;
+		bayName: string;
+		storageFromLocal: string;
+		storageToLocal: string;
+		serviceAtLocal: string;
+		committalAtLocal: string;
+		committalSite: string;
+		awaitingThirdParty: boolean;
+		provisional: boolean;
+	}
+
+	let dialog = $state<HTMLDialogElement>();
+	let form = $state<EditForm | undefined>(undefined);
+	let formError = $state<string | undefined>(undefined);
+	let confirmingRemoval = $state(false);
+
+	function amend(entry: BoardEntry): void {
+		form = {
+			reference: entry.reference,
+			decedentName: entry.decedentName,
+			arrangerName: entry.arrangerName,
+			payerName: entry.payerName,
+			traditionLabel: entry.traditionLabel,
+			bayName: entry.bayName,
+			storageFromLocal: toZonedInput(entry.storageFrom, zone),
+			storageToLocal: toZonedInput(entry.storageTo, zone),
+			serviceAtLocal: toZonedInput(entry.serviceAt, zone),
+			committalAtLocal: toZonedInput(entry.committalAt, zone),
+			committalSite: entry.committalSite,
+			awaitingThirdParty: entry.awaitingThirdParty,
+			provisional: entry.provisional
+		};
+		formError = undefined;
+		confirmingRemoval = false;
+		dialog?.showModal();
+	}
+
+	function save(event: SubmitEvent): void {
+		event.preventDefault();
+		if (!form) return;
+
+		if (!form.decedentName.trim() || !form.arrangerName.trim()) {
+			formError = 'A case needs the name of the deceased and of the person arranging it.';
+			return;
+		}
+
+		// A cleared or half-typed field reaches here as nonsense rather than as
+		// a date, and a case with no committal on it is worse than a refusal.
+		let storageFrom: string;
+		let storageTo: string;
+		let serviceAt: string;
+		let committalAt: string;
+		try {
+			storageFrom = fromZonedInput(form.storageFromLocal, zone);
+			storageTo = fromZonedInput(form.storageToLocal, zone);
+			serviceAt = fromZonedInput(form.serviceAtLocal, zone);
+			committalAt = fromZonedInput(form.committalAtLocal, zone);
+		} catch {
+			formError = 'Every date on a case has to be a real date and time.';
+			return;
+		}
+
+		if (Date.parse(storageTo) <= Date.parse(storageFrom)) {
+			formError = 'The bay cannot be given up before the deceased is in it.';
+			return;
+		}
+		if (Date.parse(committalAt) < Date.parse(serviceAt)) {
+			formError = 'The committal cannot fall before the service.';
+			return;
+		}
+
+		board = updateBoardEntry(form.reference, {
+			decedentName: form.decedentName.trim(),
+			arrangerName: form.arrangerName.trim(),
+			payerName: form.payerName.trim() || form.arrangerName.trim(),
+			traditionLabel: form.traditionLabel,
+			bayName: form.bayName,
+			storageFrom,
+			storageTo,
+			serviceAt,
+			committalAt,
+			committalSite: form.committalSite,
+			awaitingThirdParty: form.awaitingThirdParty,
+			provisional: form.provisional
+		});
+		dialog?.close();
+	}
+
+	function remove(): void {
+		if (!form) return;
+		board = removeBoardEntry(form.reference);
+		dialog?.close();
+	}
+
+	/** The two telephone calls that close a case, straight off the board. */
+	function siteConfirmed(entry: BoardEntry): void {
+		board = updateBoardEntry(entry.reference, { awaitingThirdParty: false });
+	}
+
+	function coronerReleased(entry: BoardEntry): void {
+		board = updateBoardEntry(entry.reference, { provisional: false });
+	}
+
+	function clearTheBoard(): void {
+		resetBoard();
+		board = seedBoardOnce(seeded());
+	}
 </script>
 
 <div class="hairline pb-5">
 	<p class="eyebrow">Today</p>
-	<h1 class="display mt-1 text-3xl">{board.length} in our care</h1>
+	<h1 class="display mt-1 text-3xl">{cases.length} in our care</h1>
 	<p class="mt-2 text-sm opacity-60">
 		{awaiting.length} waiting on a third party · {provisional.length} provisional on a coroner · all times
 		{zone}
 	</p>
 </div>
 
-<section class="mt-10">
+<dl class="mt-6 grid grid-cols-2 gap-px border border-base-300 bg-base-300 sm:grid-cols-4">
+	{#each figures as figure (figure.label)}
+		<div class="bg-base-100 p-4">
+			<dt class="text-xs opacity-55">{figure.label}</dt>
+			<dd class="display mt-1 text-2xl tabular-nums {figure.tone}">{figure.value}</dd>
+		</div>
+	{/each}
+</dl>
+
+<section class="mt-14">
 	<h2 class="eyebrow">Cold storage</h2>
 	<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-65">
 		Three bays. Every day a case sits in one is a day it is not there for the next family, and a bay
@@ -122,10 +327,11 @@
 			<div class="rounded-box border border-base-300 p-4">
 				<p class="text-xs opacity-55">{bay.name}</p>
 				{#if bay.entry}
-					{@const held = daysHeld(bay.entry)}
-					{@const level = pressure(bay.entry)}
-					<p class="display mt-1 text-lg">{bay.entry.decedentName}</p>
-					<p class="mt-1 text-xs opacity-55">{bay.entry.reference}</p>
+					{@const occupant = bay.entry}
+					{@const held = daysHeld(occupant)}
+					{@const level = pressure(occupant)}
+					<p class="display mt-1 text-lg">{occupant.decedentName}</p>
+					<p class="mt-1 text-xs opacity-55">{occupant.reference}</p>
 					<div class="mt-3">
 						<div class="h-1.5 w-full overflow-hidden rounded-full bg-base-300">
 							<div
@@ -144,6 +350,14 @@
 							{/if}
 						</p>
 					</div>
+					{#if bay.clashes > 0}
+						<p class="mt-2 text-xs text-error">
+							{bay.clashes} other case{bay.clashes === 1 ? '' : 's'} assigned to this bay
+						</p>
+					{/if}
+					<button class="btn mt-3 btn-ghost btn-xs" onclick={() => amend(occupant)}>
+						Amend this case
+					</button>
 				{:else}
 					<p class="mt-1 text-lg opacity-35">Empty</p>
 					<p class="mt-1 text-xs opacity-45">Available now</p>
@@ -155,6 +369,10 @@
 
 <section class="mt-14">
 	<h2 class="eyebrow">The board</h2>
+	<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-65">
+		Every case the home is carrying, soonest committal first. Open one to see the whole chain as it
+		was booked; amend one when the cemetery telephones back with a different hour, which they will.
+	</p>
 	<div class="mt-4 overflow-x-auto">
 		<table class="table table-sm">
 			<thead>
@@ -163,21 +381,32 @@
 					<th>Deceased</th>
 					<th>Arranged by</th>
 					<th>Account</th>
+					<th>Bay</th>
 					<th>Service</th>
 					<th>Committal</th>
 					<th>State</th>
+					<th></th>
 				</tr>
 			</thead>
 			<tbody>
-				{#each board as entry (entry.reference)}
+				{#each cases as entry (entry.reference)}
 					<tr class="hover:bg-base-200/60">
-						<td class="font-mono text-xs">{entry.reference}</td>
+						<td class="font-mono text-xs">
+							<button class="link link-hover" onclick={() => toggle(entry.reference)}>
+								{opened === entry.reference ? '▾' : '▸'}
+								{entry.reference}
+							</button>
+						</td>
 						<td>
 							<span class="display">{entry.decedentName}</span>
 							<span class="block text-xs opacity-50">{entry.traditionLabel}</span>
 						</td>
 						<td class="text-sm">{entry.arrangerName}</td>
 						<td class="text-sm opacity-70">{entry.payerName}</td>
+						<td class="text-sm whitespace-nowrap">
+							{entry.bayName.replace('Cold Storage ', '')}
+							<span class="block text-xs opacity-50">day {daysHeld(entry)}</span>
+						</td>
 						<td class="text-sm whitespace-nowrap">
 							{formatDateInZone(entry.serviceAt, zone)}
 							<span class="block tabular-nums opacity-55">
@@ -201,11 +430,76 @@
 								>
 							{/if}
 						</td>
+						<td class="text-right">
+							<button class="btn btn-ghost btn-xs" onclick={() => amend(entry)}>Amend</button>
+						</td>
 					</tr>
+					{#if opened === entry.reference}
+						<tr class="bg-base-200/40">
+							<td colspan="9" class="px-4 py-4">
+								<div class="grid gap-6 sm:grid-cols-[minmax(0,1fr)_16rem]">
+									<div>
+										<p class="eyebrow">The chain as booked</p>
+										{#if entry.steps && entry.steps.length > 0}
+											<ol class="mt-3 space-y-2">
+												{#each entry.steps as step, index (index)}
+													<li class="flex flex-wrap items-baseline gap-x-3 text-sm">
+														<span class="w-24 shrink-0 opacity-70">{step.label}</span>
+														<span class="tabular-nums">
+															{formatDateInZone(step.startsAt, zone)},
+															{formatInZone(step.startsAt, zone)}–{formatInZone(step.endsAt, zone)}
+														</span>
+														<span class="opacity-60">{step.resourceName}</span>
+														{#if step.bookingId}
+															<span class="ml-auto font-mono text-xs opacity-40">
+																{step.bookingId.slice(0, 8)}
+															</span>
+														{/if}
+													</li>
+												{/each}
+											</ol>
+										{:else}
+											<p class="mt-3 max-w-xl text-sm leading-relaxed opacity-60">
+												This case was entered before the board kept the whole chain. Its service and
+												its committal are on the row above; the rest is in the day book.
+											</p>
+										{/if}
+									</div>
+									<div class="text-sm">
+										<p class="eyebrow">In our care</p>
+										<p class="mt-3 opacity-70">
+											{formatDateInZone(entry.storageFrom, zone)}
+											<span class="block opacity-60">
+												until {formatDateInZone(entry.storageTo, zone)}
+											</span>
+										</p>
+										<div class="mt-4 flex flex-wrap gap-2">
+											{#if entry.awaitingThirdParty}
+												<button class="btn btn-outline btn-xs" onclick={() => siteConfirmed(entry)}>
+													Site confirmed
+												</button>
+											{/if}
+											{#if entry.provisional}
+												<button
+													class="btn btn-outline btn-xs"
+													onclick={() => coronerReleased(entry)}
+												>
+													Coroner released
+												</button>
+											{/if}
+										</div>
+									</div>
+								</div>
+							</td>
+						</tr>
+					{/if}
 				{/each}
 			</tbody>
 		</table>
 	</div>
+	{#if cases.length === 0}
+		<p class="mt-4 text-sm opacity-55">Nothing on the board.</p>
+	{/if}
 </section>
 
 {#if awaiting.length > 0}
@@ -225,14 +519,260 @@
 					<span class="ml-auto tabular-nums opacity-55">
 						{formatDateInZone(entry.committalAt, zone)}, {formatInZone(entry.committalAt, zone)}
 					</span>
+					<button class="btn btn-outline btn-xs" onclick={() => siteConfirmed(entry)}>
+						Confirmed
+					</button>
 				</li>
 			{/each}
 		</ul>
 	</section>
 {/if}
 
-<div class="mt-14">
+{#if provisional.length > 0}
+	<section class="mt-14">
+		<h2 class="eyebrow">Provisional on a coroner</h2>
+		<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-65">
+			Nothing here may be promised to a family as a date. The body is the coroner's until they
+			release it, and every hour they take drags five bookings and a refrigerated bay behind it.
+		</p>
+		<ul class="mt-4 space-y-2">
+			{#each provisional as entry (entry.reference)}
+				<li class="flex flex-wrap items-baseline gap-x-3 border-b border-base-200 pb-2 text-sm">
+					<span class="font-mono text-xs opacity-55">{entry.reference}</span>
+					<span class="display">{entry.decedentName}</span>
+					<span class="opacity-60">service {formatDateInZone(entry.serviceAt, zone)}</span>
+					<button class="btn ml-auto btn-outline btn-xs" onclick={() => coronerReleased(entry)}>
+						Released
+					</button>
+				</li>
+			{/each}
+		</ul>
+	</section>
+{/if}
+
+<section class="mt-14">
+	<h2 class="eyebrow">What we publish</h2>
+	<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-65">
+		The steps a family's plan is assembled from, exactly as the booking API advertises them. A
+		director asked why a plan chose the reserve hearse can see here what the choice was.
+	</p>
+	<div class="mt-4 overflow-x-auto">
+		<table class="table table-sm">
+			<thead>
+				<tr class="text-xs">
+					<th>Step</th>
+					<th>What it is</th>
+					<th class="text-right">Duration</th>
+					<th>Runs on</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each data.services as service (service.id)}
+					<tr>
+						<td class="display whitespace-nowrap">{service.name}</td>
+						<td class="max-w-md text-sm opacity-65">{service.description ?? '—'}</td>
+						<td class="text-right text-sm whitespace-nowrap tabular-nums">
+							{service.durationMinutes} min
+						</td>
+						<td class="text-sm">
+							{#if service.resources.length > 0}
+								{service.resources.map((resource) => resource.name).join(', ')}
+							{:else}
+								<span class="opacity-50">Assigned by us</span>
+							{/if}
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
+</section>
+
+<section class="mt-14">
+	<h2 class="eyebrow">What we have</h2>
+	<p class="mt-2 max-w-2xl text-sm leading-relaxed opacity-65">
+		The rooms, the cars and the sites behind those steps. Two of these groups are not ordinary
+		inventory: cold storage is held for days rather than for an hour, and a committal site belongs
+		to somebody else entirely.
+	</p>
+	<div class="mt-4 grid gap-4 sm:grid-cols-2">
+		{#each inventoryGroups as group (group.id)}
+			<div class="rounded-box border border-base-300 p-4">
+				<div class="flex items-baseline justify-between gap-3">
+					<p class="display text-lg">{group.label}</p>
+					<p class="text-xs tabular-nums opacity-50">{group.rows.length}</p>
+				</div>
+				{#if group.note}
+					<p class="mt-1 text-xs leading-relaxed opacity-55">{group.note}</p>
+				{/if}
+				<ul class="mt-3 space-y-1.5">
+					{#each group.rows as row (row.name)}
+						<li class="border-b border-base-200 pb-1.5 text-sm last:border-0">
+							{row.name}
+							<span class="block text-xs opacity-50">
+								{row.steps.length > 0 ? row.steps.join(' · ') : 'Not published'}
+							</span>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/each}
+	</div>
+</section>
+
+<div class="mt-14 flex flex-wrap items-center gap-4">
 	<a href={resolve(`/${data.organization.slug}`)} class="btn btn-ghost btn-sm">
 		Begin an arrangement
 	</a>
+	<button class="btn btn-ghost opacity-60 btn-sm" onclick={clearTheBoard}>
+		Clear the board and lay out the demonstration cases again
+	</button>
 </div>
+
+<dialog class="modal" bind:this={dialog} onclose={() => (form = undefined)}>
+	<div class="modal-box max-w-2xl border border-base-300">
+		{#if form}
+			<form onsubmit={save}>
+				<p class="eyebrow">Amending</p>
+				<h3 class="display mt-1 text-2xl">{form.decedentName || 'This case'}</h3>
+				<p class="mt-1 font-mono text-xs opacity-55">{form.reference}</p>
+
+				<div class="mt-6 grid gap-4 sm:grid-cols-2">
+					<label class="form-control sm:col-span-2">
+						<span class="label-text py-1 text-sm">The deceased</span>
+						<input
+							class="input-bordered input w-full"
+							maxlength="255"
+							bind:value={form.decedentName}
+						/>
+					</label>
+					<label class="form-control">
+						<span class="label-text py-1 text-sm">Arranged by</span>
+						<input
+							class="input-bordered input w-full"
+							maxlength="255"
+							bind:value={form.arrangerName}
+						/>
+					</label>
+					<label class="form-control">
+						<span class="label-text py-1 text-sm">Account settled by</span>
+						<input
+							class="input-bordered input w-full"
+							maxlength="255"
+							bind:value={form.payerName}
+						/>
+					</label>
+					<label class="form-control">
+						<span class="label-text py-1 text-sm">Tradition</span>
+						<select class="select-bordered select w-full" bind:value={form.traditionLabel}>
+							{#each TRADITIONS as tradition (tradition.id)}
+								<option value={tradition.label}>{tradition.label}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="form-control">
+						<span class="label-text py-1 text-sm">Bay</span>
+						<select class="select-bordered select w-full" bind:value={form.bayName}>
+							{#each STORAGE_BAYS as bay (bay.id)}
+								<option value={bay.name}>{bay.name}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="form-control">
+						<span class="label-text py-1 text-sm">In our care from</span>
+						<input
+							class="input-bordered input w-full"
+							type="datetime-local"
+							bind:value={form.storageFromLocal}
+						/>
+					</label>
+					<label class="form-control">
+						<span class="label-text py-1 text-sm">Until</span>
+						<input
+							class="input-bordered input w-full"
+							type="datetime-local"
+							bind:value={form.storageToLocal}
+						/>
+					</label>
+					<label class="form-control">
+						<span class="label-text py-1 text-sm">Service</span>
+						<input
+							class="input-bordered input w-full"
+							type="datetime-local"
+							bind:value={form.serviceAtLocal}
+						/>
+					</label>
+					<label class="form-control">
+						<span class="label-text py-1 text-sm">Committal</span>
+						<input
+							class="input-bordered input w-full"
+							type="datetime-local"
+							bind:value={form.committalAtLocal}
+						/>
+					</label>
+					<label class="form-control sm:col-span-2">
+						<span class="label-text py-1 text-sm">Committal site</span>
+						<select class="select-bordered select w-full" bind:value={form.committalSite}>
+							{#each sites as site (site)}
+								<option value={site}>{site}</option>
+							{/each}
+							{#if !sites.includes(form.committalSite)}
+								<option value={form.committalSite}>{form.committalSite}</option>
+							{/if}
+						</select>
+					</label>
+				</div>
+
+				<p class="mt-4 text-xs opacity-55">Times are {zone}, the home's own clock.</p>
+
+				<div class="mt-4 space-y-2">
+					<label class="flex items-center gap-3 text-sm">
+						<input
+							type="checkbox"
+							class="checkbox checkbox-sm"
+							bind:checked={form.awaitingThirdParty}
+						/>
+						Waiting on the site to confirm their slot
+					</label>
+					<label class="flex items-center gap-3 text-sm">
+						<input type="checkbox" class="checkbox checkbox-sm" bind:checked={form.provisional} />
+						Provisional — the coroner has not released
+					</label>
+				</div>
+
+				{#if formError}
+					<div role="alert" class="mt-4 alert alert-error"><span>{formError}</span></div>
+				{/if}
+
+				<div class="modal-action items-center">
+					{#if confirmingRemoval}
+						<span class="mr-auto text-sm">Take this case off the board?</span>
+						<button
+							type="button"
+							class="btn btn-ghost btn-sm"
+							onclick={() => (confirmingRemoval = false)}
+						>
+							Keep it
+						</button>
+						<button type="button" class="btn btn-error btn-sm" onclick={remove}>Remove</button>
+					{:else}
+						<button
+							type="button"
+							class="btn mr-auto btn-ghost text-error btn-sm"
+							onclick={() => (confirmingRemoval = true)}
+						>
+							Remove
+						</button>
+						<button type="button" class="btn btn-ghost btn-sm" onclick={() => dialog?.close()}>
+							Cancel
+						</button>
+						<button type="submit" class="btn btn-primary btn-sm">Save the amendment</button>
+					{/if}
+				</div>
+			</form>
+		{/if}
+	</div>
+	<form method="dialog" class="modal-backdrop">
+		<button>Close</button>
+	</form>
+</dialog>

@@ -47,13 +47,13 @@ Open `http://localhost:5173` and begin an arrangement. `VITE_API_URL` (see
 
 ## Routes
 
-| Route                  | Page                                                           |
-| ---------------------- | -------------------------------------------------------------- |
-| `/`                    | What the home is for                                           |
-| `/{slug}`              | Intake — the deceased, the tradition, the coroner, the parties |
-| `/{slug}/arrangements` | The window, its constraints, and the plans that fit inside it  |
-| `/{slug}/confirmed`    | The held arrangement                                           |
-| `/{slug}/director`     | The home's own board: cold storage, cases, third-party slots   |
+| Route                  | Page                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `/`                    | What the home is for                                                                                                |
+| `/{slug}`              | Intake — the deceased, the tradition, the coroner, the parties                                                      |
+| `/{slug}/arrangements` | The window, its constraints, and the plans that fit inside it                                                       |
+| `/{slug}/confirmed`    | The held arrangement                                                                                                |
+| `/{slug}/director`     | The home's own board: cold storage, cases it can amend, third-party slots, and the steps and resources it publishes |
 
 The only data the app touches comes from the five unauthenticated routes under
 `/public` — the OpenAPI schema for them is generated into
@@ -64,7 +64,9 @@ migration was needed to build any of this.
 An arrangement in progress lives in `sessionStorage` and goes with the tab — a
 family fills it in over twenty minutes on the worst day of their life, and
 losing it to a refresh is not acceptable, but it is also not ours to keep. The
-director's board is `localStorage`, because it is the home's own screen.
+director's board is `localStorage`, because it is the home's own screen. A
+case is amended there and not through the API: the write routes the admin
+panel will use are behind a session, and the console does not have one yet.
 
 ## API types
 
