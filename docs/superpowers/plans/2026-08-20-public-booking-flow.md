@@ -327,9 +327,17 @@ export interface Interval {
 
 /** Sorts by start and coalesces anything overlapping or touching. */
 export function mergeIntervals(intervals: Interval[]): Interval[] {
-  if (intervals.length === 0) return [];
+  // Degenerate intervals are filtered at the root so both callers are covered.
+  // They are reachable from valid data: on a DST spring-forward day an
+  // UNAVAILABLE 02:00-03:00 exception resolves to the same instant twice.
+  const sorted = intervals
+    .filter((interval) => interval.end > interval.start)
+    .sort((a, b) => a.start - b.start);
 
-  const sorted = [...intervals].sort((a, b) => a.start - b.start);
+  // Checked after filtering: a non-empty all-degenerate input leaves this
+  // empty, and `{ ...sorted[0] }` on undefined would silently yield {}.
+  if (sorted.length === 0) return [];
+
   const merged: Interval[] = [{ ...sorted[0] }];
 
   for (const current of sorted.slice(1)) {
@@ -609,6 +617,14 @@ export interface MergedSlot {
  * a booking blocks the padding around it as well as its own span.
  */
 export function computeSlots(input: SlotInput): Interval[] {
+  // Without this, durationMs <= 0 makes the stepping loop below never advance
+  // and it allocates until the process dies (verified: heap OOM at ~4GB).
+  // chk_service_duration guards the DB today, but no entity declares @Check,
+  // so a SYNCHRONIZE=true run would drop it. The layer owning the loop owns
+  // the guard. Return empty rather than throw: a misconfigured service shows
+  // no availability instead of 500-ing a public endpoint for everyone.
+  if (input.durationMs <= 0) return [];
+
   const blocked = input.busy.map((interval) =>
     expandInterval(interval, input.bufferBeforeMs, input.bufferAfterMs),
   );
@@ -2040,6 +2056,28 @@ git commit -m "docs(frontend): how to run the consumer booking app"
 - [ ] `curl http://localhost:3005/services` still returns **401** — the staff API never opened up
 - [ ] Booking the same slot until resources run out returns 409, and the UI recovers from it
 - [ ] `backend/README.md` records the day-of-week convention
+
+## Amendments applied after code review
+
+Both were defects in this plan, not implementation drift — the committed code
+was byte-identical to what was specified here. The code blocks above now carry
+the corrections; this records why.
+
+**Task 2 — degenerate intervals (commit `8e6e95e`).** `mergeIntervals` did not
+filter intervals where `end <= start`, so a zero-length cut fragmented a window
+into two and an inverted cut produced overlapping output, breaking the
+disjointness guarantee callers rely on. Reachable from valid data via DST. The
+empty-check had to move below the filter to avoid spreading `undefined`. Seven
+tests added, including the containment case for `Math.max`, which mutation
+testing proved was unguarded — the branch whose failure mode is bookable slots
+inside a blocked period.
+
+**Task 3 — non-positive duration (commit `f1544e0`).** `computeSlots` looped
+forever on `durationMs <= 0`, crashing the process rather than returning a bad
+answer, on a route that is `@Public()`. Six tests added, including two
+asymmetric buffer cases: the original buffer test used equal before/after
+values, so transposing the two arguments of `expandInterval` was invisible to
+the entire suite.
 
 ## Deliberately not built
 
