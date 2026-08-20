@@ -14,6 +14,7 @@ import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
 } from '../../auth/auth.constants';
+import { NormalizeEmail } from '../../common/decorators/normalize-email.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 
 export class CreateUserDto {
@@ -23,6 +24,7 @@ export class CreateUserDto {
   name: string;
 
   @ApiProperty({ example: 'berkay@example.com' })
+  @NormalizeEmail()
   @IsEmail()
   @MaxLength(EMAIL_MAX_LENGTH)
   email: string;

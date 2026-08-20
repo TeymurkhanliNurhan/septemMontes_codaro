@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
@@ -8,6 +9,7 @@ import {
   SessionConfig,
   SESSION_CONFIG_KEY,
 } from './auth/config/session.config';
+import { resolveTrustProxy } from './common/utils/trust-proxy';
 
 const DEFAULT_DEV_ORIGINS = [
   'http://localhost:5173',
@@ -16,11 +18,15 @@ const DEFAULT_DEV_ORIGINS = [
 ];
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
   const session = configService.getOrThrow<SessionConfig>(SESSION_CONFIG_KEY);
   const isProduction = configService.get<string>('NODE_ENV') === 'production';
 
+  app.set(
+    'trust proxy',
+    resolveTrustProxy(configService.get<string>('TRUST_PROXY')),
+  );
   app.use(cookieParser());
 
   const configured = configService.get<string>('CORS_ORIGINS');
