@@ -1,40 +1,68 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
-  IsEnum,
+  IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
+  Validate,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
 } from 'class-validator';
-import { ResourceStatus } from '../../common/enums/resource-status.enum';
+
+@ValidatorConstraint({ name: 'isPlainObject', async: false })
+export class IsPlainObjectConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    return (
+      typeof value === 'object' && value !== null && !Array.isArray(value)
+    );
+  }
+
+  defaultMessage(): string {
+    return 'metadata must be a JSON object';
+  }
+}
 
 export class CreateResourceDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  organizationId: string;
-
-  @ApiProperty()
+  @ApiProperty({
+    type: String,
+    description: 'Display name of the resource',
+    example: 'Room A',
+    maxLength: 255,
+  })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
+  @IsNotEmpty()
   @MaxLength(255)
   name: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    type: String,
+    description: 'Optional generic type label (e.g. meeting_room, vehicle)',
+    example: 'meeting_room',
+    nullable: true,
+    maxLength: 100,
+  })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
-  resourceType?: string;
+  @MaxLength(100)
+  resourceType?: string | null;
 
-  @ApiPropertyOptional({ enum: ResourceStatus })
-  @IsOptional()
-  @IsEnum(ResourceStatus)
-  status?: ResourceStatus;
-
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  organizationsId: string;
-
-  @ApiPropertyOptional({ example: {} })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    description: 'Arbitrary JSON object (not an array)',
+    example: { capacity: 8, floor: 2 },
+    default: {},
+  })
   @IsOptional()
   @IsObject()
+  @Validate(IsPlainObjectConstraint)
   metadata?: Record<string, unknown>;
 }
