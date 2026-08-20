@@ -158,6 +158,14 @@ export class AvailabilityService {
     manager?: EntityManager,
   ): Promise<boolean> {
     if (startsAt < search.now) return false;
+    // computeSlots guards durationMs <= 0 (zero never steps forward,
+    // negative walks backward), and findSlots inherits that guard for free.
+    // isSlotFree no longer routes through computeSlots since the
+    // containment rework, so it must repeat the check itself: with
+    // durationMs = 0 the containment test below degenerates to "is
+    // startsAt inside a free interval", which is true almost everywhere,
+    // not "false, nothing to offer" like findSlots.
+    if (search.service.durationMinutes <= 0) return false;
 
     const resources = manager?.getRepository(Resource) ?? this.resources;
     const resource = await resources.findOne({
@@ -189,11 +197,12 @@ export class AvailabilityService {
     );
   }
 
-  private async resolveResources(
-    search: SlotSearch,
-    manager?: EntityManager,
-  ): Promise<Resource[]> {
-    const capable = await this.capableResources(search.service.id, manager);
+  // Not manager-aware: only findSlots calls this, and findSlots is the
+  // public search endpoint, never run inside a transaction. A manager
+  // parameter here with no caller to pass one would be dead code that
+  // implies otherwise.
+  private async resolveResources(search: SlotSearch): Promise<Resource[]> {
+    const capable = await this.capableResources(search.service.id);
     if (!search.resourceId) return capable;
     return capable.filter((resource) => resource.id === search.resourceId);
   }
